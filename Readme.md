@@ -17,7 +17,7 @@ Panduan deployment untuk aplikasi PHP tanpa framework (konfigurasi dasar web ser
 *   [➜ Deployment Multi Application (PHP)](./php/multi-app)
     *Panduan setup beberapa aplikasi PHP menggunakan Apache Virtual Host.*
 
-### 2. Laravel Framework
+### 2. Laravel Framework (Menggunakan Docker)
 Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti optimasi *cache*, permissions folder `storage`, dan environment files.
 *   [➜ Deployment Single Application (Laravel)](./laravel/single-app)
     *Setup satu project Laravel di VPS.*
