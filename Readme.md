@@ -23,10 +23,10 @@ Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti 
 
 Panduan deployment untuk aplikasi PHP tanpa framework (konfigurasi dasar web server dan database).
 
-- [➜ Deployment Single Application (PHP)](./php-cpanel/single-app)
+- [➜ Deployment Single Application (PHP)](./php-ftp/single-app)
   _Panduan setup satu aplikasi PHP pada satu domain._
-<!-- - [➜ Deployment Multi Application (PHP)](./php-cpanel/multi-app)
-  _Panduan setup beberapa aplikasi PHP menggunakan Apache Virtual Host._ -->
+- [➜ Deployment Multi Application (PHP)](./php-ftp/multi-app)
+  _Panduan setup beberapa aplikasi PHP menggunakan Apache Virtual Host._
 
 ---
 
