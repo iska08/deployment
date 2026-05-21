@@ -210,10 +210,6 @@ apt install git
 
 - Clone file `Dockerfile` dan `docker-compose.yml` dari repository.
 
-```bash
-git clone https://github.com/iska08/deploy-laravel-single-application.git .
-```
-
 `Dockerfile`
 
 ```bash
@@ -377,7 +373,7 @@ cat ~/.ssh/id_rsa
   - `Key` => FILE_ENV
   - `Value` => Isi file .env
 
-Ganti isi “DB_HOST” dengan nama container mysql _“database”_ atau bisa dicek dengan exit dari user deployer `(root@name-server:/home/nama_aplikasi/www#)` lalu jalankan `docker container ls` lalu cari _“NAMES”_ dari mysql. Samakan isi DB_DATABASE, DB_USERNAME, dan DB_PASSWORD dengan yang ada di file `docker-compose.yml`.
+Ganti isi “DB*HOST” dengan nama container mysql *“database”_ atau bisa dicek dengan exit dari user deployer `(root@name-server:/home/nama_aplikasi/www#)` lalu jalankan `docker container ls` lalu cari _“NAMES”\_ dari mysql. Samakan isi DB_DATABASE, DB_USERNAME, dan DB_PASSWORD dengan yang ada di file `docker-compose.yml`.
 
 ## 8\. Membuat _Runner_
 
@@ -418,7 +414,7 @@ Deploy:
 
     variables:
         VAR_DIREKTORI: "/home/nama_aplikasi/www"
-        VAR_GIT_URL_TANPA_HTTP: "gitlab.com/iska08/nama_aplikasi.git"
+        VAR_GIT_URL_TANPA_HTTP: "gitlab.com/username/nama_aplikasi.git"
         VAR_CLONE_KEY: "xxx"
         VAR_USER: "xxx"
         VAR_IP: "xxx"
@@ -514,10 +510,10 @@ Deploy:
         - echo "Deployment selesai! Cron job untuk sitemap telah diaktifkan!"
 ```
 
-- Untuk VAR_CLONE_KEY kita masuk ke Gitlab lalu klik foto profil dan pilih _“Edit profile”_, kemudian cari _“Access Tokens”_.
+- Untuk VAR*CLONE_KEY kita masuk ke Gitlab lalu klik foto profil dan pilih *“Edit profile”_, kemudian cari _“Access Tokens”\_.
 - Untuk _“Token name”_ isi dengan _deployer_ dan untuk _“Select scopes”_ checklist semuanya lalu klik _“Create personal access token”_.
 - Copy token yang sudah dibuat dan letakkan di VAR_CLONE_KEY tadi.
-- Ganti isi VAR_USER dengan _deployer_.
+- Ganti isi VAR*USER dengan \_deployer*.
 - Ganti isi VAR_IP dengan IP_VPS Anda.
 
 ## 10\. Tambah permission ke folder `/home/nama_aplikasi/www` (Opsional)

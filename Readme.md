@@ -19,6 +19,15 @@ Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti 
 - [➜ Deployment Multi Application (Laravel)](./laravel-docker/multi-app)
   _Setup beberapa project Laravel (multi-domain/subdomain) dalam satu VPS menggunakan Apache._
 
+### 2. PHP Biasa (Native)
+
+Panduan deployment untuk aplikasi PHP tanpa framework (konfigurasi dasar web server dan database).
+
+- [➜ Deployment Single Application (PHP)](./php-cpanel/single-app)
+  _Panduan setup satu aplikasi PHP pada satu domain._
+<!-- - [➜ Deployment Multi Application (PHP)](./php-cpanel/multi-app)
+  _Panduan setup beberapa aplikasi PHP menggunakan Apache Virtual Host._ -->
+
 ---
 
 ## 🛠️ Prasyarat Umum (Prerequisites)

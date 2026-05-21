@@ -214,10 +214,6 @@ apt install git
 
 - Clone file _Dockerfile_, _docker-compose.yml_, dan _vhosts.conf_ dari repository.
 
-```bash
-git clone https://github.com/iska08/deploy-laravel-multi-application.git .
-```
-
 `Dockerfile`
 
 ```bash
@@ -415,7 +411,7 @@ su deployer
 cat ~/.ssh/id_rsa
 ```
 
-- Buka _GitLab_ dan masuk ke repository aplikasi Anda, pilih _Setting_ > _CI/CD_ > _Variable_ dan klik _“Add variable”_ untuk menambahkan SSH_PRIVATE_KEY, FILE_HTACCESS, dan FILE_ENV dengan isian berikut dan selalu matikan _“Protect variable”_:
+- Buka _GitLab_ dan masuk ke repository aplikasi Anda, pilih _Setting_ > _CI/CD_ > _Variable_ dan klik _“Add variable”_ untuk menambahkan SSH*PRIVATE_KEY, FILE_HTACCESS, dan FILE_ENV dengan isian berikut dan selalu matikan *“Protect variable”\_:
 
 - SSH_PRIVATE_KEY
   <br>
@@ -514,7 +510,7 @@ Deploy:
 
 variables:
     VAR_DIREKTORI: "/home/aplikasi1"
-    VAR_GIT_URL_TANPA_HTTP: "gitlab.com/iska08/aplikasi1.git"
+    VAR_GIT_URL_TANPA_HTTP: "gitlab.com/username/aplikasi1.git"
     VAR_CLONE_KEY: "xxx"
     VAR_USER: "xxx"
     VAR_IP: "xxx" # IP_VPS
