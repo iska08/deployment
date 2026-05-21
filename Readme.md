@@ -12,16 +12,16 @@ Pilih jenis deployment yang sesuai dengan kebutuhan Anda melalui pintasan direkt
 
 ### 1. PHP Biasa (Native)
 Panduan deployment untuk aplikasi PHP tanpa framework (konfigurasi dasar web server dan database).
-*   [➜ Deployment Single Application (PHP)](./php/single-app)
+*   [➜ Deployment Single Application (PHP)](./php-cpanel/single-app)
     *Panduan setup satu aplikasi PHP pada satu domain.*
-*   [➜ Deployment Multi Application (PHP)](./php/multi-app)
+*   [➜ Deployment Multi Application (PHP)](./php-cpanel/multi-app)
     *Panduan setup beberapa aplikasi PHP menggunakan Apache Virtual Host.*
 
 ### 2. Laravel Framework (Menggunakan Docker)
 Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti optimasi *cache*, permissions folder `storage`, dan environment files.
-*   [➜ Deployment Single Application (Laravel)](./laravel/single-app)
+*   [➜ Deployment Single Application (Laravel)](./laravel-docker/single-app)
     *Setup satu project Laravel di VPS.*
-*   [➜ Deployment Multi Application (Laravel)](./laravel/multi-app)
+*   [➜ Deployment Multi Application (Laravel)](./laravel-docker/multi-app)
     *Setup beberapa project Laravel (multi-domain/subdomain) dalam satu VPS menggunakan Apache.*
 
 ---
