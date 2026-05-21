@@ -1,0 +1,49 @@
+version: "3.3"
+services:
+  webserver:
+    container_name: webserver
+    build: .
+    restart: always
+    depends_on:
+      - database
+    volumes:
+      - /home/aplikasi1:/var/www/aplikasi1
+      - /home/aplikasi2:/var/www/aplikasi2
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - webnet
+
+  database:
+    container_name: database
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123
+    ports:
+      - "9906:3306"
+    volumes:
+      - ./dbdata:/var/lib/mysql
+    networks:
+      - webnet
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
+    restart: always
+    depends_on:
+      - database
+    environment:
+      PMA_HOST: database
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 100M
+    ports:
+      - "8080:80"
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge
