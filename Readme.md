@@ -14,9 +14,9 @@ Pilih jenis deployment yang sesuai dengan kebutuhan Anda melalui pintasan direkt
 
 Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti optimasi _cache_, permissions folder `storage`, dan environment files.
 
-- [➜ Deployment Single Application (Laravel)](./docker-laravel/single-app)
+- [➜ Deployment Single Application (Docker)](./docker-laravel/single-app)
   _Setup satu project Laravel di VPS._
-- [➜ Deployment Multi Application (Laravel)](./docker-laravel/multi-app)
+- [➜ Deployment Multi Application (Docker)](./docker-laravel/multi-app)
   _Setup beberapa project Laravel (multi-domain/subdomain) dalam satu VPS menggunakan Apache._
 
 ### 2. Menggunakan FTP-CPanel (Laravel Framework)
