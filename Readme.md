@@ -19,7 +19,16 @@ Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti 
 - [➜ Deployment Multi Application (Laravel)](./laravel-docker/multi-app)
   _Setup beberapa project Laravel (multi-domain/subdomain) dalam satu VPS menggunakan Apache._
 
-### 2. PHP Biasa (Native)
+### 2. Laravel Framework (Menggunakan FTP-CPanel)
+
+Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti optimasi _cache_, permissions folder `storage`, dan environment files.
+
+- [➜ Deployment Single Application (FTP-CPanel)](./laravel-cpanel-ftp/single-app)
+  _Setup satu project Laravel di FTP-CPanel._
+- [➜ Deployment Multi Application (FTP-CPanel)](./laravel-cpanel-ftp/multi-app)
+  _Setup beberapa project Laravel (multi-domain/subdomain) dalam satu FTP-CPanel menggunakan Apache._
+
+### 3. PHP Biasa (Native)
 
 Panduan deployment untuk aplikasi PHP tanpa framework (konfigurasi dasar web server dan database).
 
