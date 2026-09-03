@@ -111,6 +111,8 @@ Di root direktori project Laravel Anda (sejajar `composer.json`), buat atau sesu
 Buka file routes/api.php pada project Laravel Anda dan tambahkan endpoint webhook di bagian bawah:
 
 ```bash
+<?php
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;

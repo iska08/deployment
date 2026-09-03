@@ -127,6 +127,8 @@ Buat database via **MySQL Database Wizard** di cPanel:
 Tambahkan route ini pada file `routes/api.php` di **KEDUA** aplikasi (`apps/web/routes/api.php` dan `apps/admin/routes/api.php`). Route ini bertugas mengekstrak `vendor.zip`, menjalankan `php artisan migrate --force`, serta membersihkan cache secara otomatis.
 
 ```bash
+<?php
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
