@@ -27,7 +27,7 @@ Berikut adalah panduan lengkap dari awal yang telah disesuaikan menggunakan **PH
 
 ### Langkah 1.3: Buat Secret di GitHub
 
-1. Buka repo Laravel Anda di **GitHub**.
+1. Buka repo Laravel Anda di [GitHub](https://github.com).
 2. Masuk ke **Settings** > **Secrets and variables** > **Actions**.
 3. Klik **New repository secret**:
 
@@ -117,8 +117,8 @@ Masuk ke **GitLab** > **Settings** > **CI/CD** > **Variables** > **Add variable*
 
 | Key            | Value                                  | Flags  |
 | -------------- | -------------------------------------- | ------ |
-| `FTP_SERVER`   | `ftp.domain-anda.com` (atau IP Server) | Masked |
-| `FTP_USERNAME` | `deployer@domain-anda.com`             | Masked |
+| `FTP_SERVER`   | `ftp.nama-domain.com` (atau IP Server) | Masked |
+| `FTP_USERNAME` | `deployer@nama-domain.com`             | Masked |
 | `FTP_PASSWORD` | _Password FTP dari Langkah 2.2_        | Masked |
 
 ### Langkah 3.2: Buat File `.gitlab-ci.yml`
@@ -214,12 +214,12 @@ Setelah pipeline GitLab CI/CD berhasil berjalan (`passed`):
 2. Buat file baru bernama `.env`.
 3. Isikan variabel berikut:
 
-```env
+```bash
 APP_NAME=Laravel
 APP_ENV=production
 APP_KEY= # Generate di lokal via `php artisan key:generate`
 APP_DEBUG=false
-APP_URL=https://domain-anda.com
+APP_URL=https://nama-domain.com
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -227,7 +227,6 @@ DB_PORT=3306
 DB_DATABASE=user_laraveldb
 DB_USERNAME=user_dbuser
 DB_PASSWORD=password_db_anda
-
 ```
 
 ### Langkah 4.2: Storage Link & Database Migration
@@ -236,7 +235,19 @@ DB_PASSWORD=password_db_anda
 
 ```bash
 cd public_html
+```
+
+```bash
 php artisan storage:link
+```
+
+Atau jalankan perintah berikut di _Terminal_ cPanel:
+
+```bash
+ln -s /home/USERNAME_CPANEL/storage/app/public /home/USERNAME_CPANEL/public_html/storage
+```
+
+```bash
 php artisan migrate --force
 ```
 
