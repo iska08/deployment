@@ -78,13 +78,10 @@ Di root direktori project Laravel Anda (sejajar `composer.json`), buat atau sesu
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # 1. Redirect domain nama-domain.id ke nama-domain.com (Permanen 301)
-    RewriteCond %{HTTP_HOST} ^(www\.)?nama-domain\.id$ [NC]
-    RewriteRule ^(.*)$ https://nama-domain.com/$1 [R=301,L]
-
-    # 2. Arahkan semua request ke folder public/ Laravel
+    # Arahkan semua request ke folder public/ Laravel
+    RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^$ public/ [L]
-    RewriteRule (.*) public/$1 [L]
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 ```
 
@@ -109,9 +106,72 @@ Di root direktori project Laravel Anda (sejajar `composer.json`), buat atau sesu
 
 ---
 
-## 3\. Konfigurasi GitLab CI/CD Pipeline (PHP 8.3 + Node.js Build)
+## 3\. Pendaftaran Route Webhook di Laravel (`routes/api.php`)
 
-### Langkah 3.1: Tambahkan Variables di GitLab
+Buka file routes/api.php pada project Laravel Anda dan tambahkan endpoint webhook di bagian bawah:
+
+```bash
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+
+// Endpoint Webhook Deployment
+Route::get('/deploy-webhook-secret-123', function (Request $request) {
+    $zipPath = base_path('vendor.zip');
+    $messages = [];
+
+    // 1. Ekstrak vendor.zip jika ada update composer
+    if (file_exists($zipPath)) {
+        File::deleteDirectory(base_path('vendor'));
+
+        $zip = new ZipArchive;
+        if ($zip->open($zipPath) === TRUE) {
+            $zip->extractTo(base_path());
+            $zip->close();
+            @unlink($zipPath);
+            $messages[] = 'Vendor updated and extracted successfully.';
+        } else {
+            $messages[] = 'Failed to extract vendor.zip.';
+        }
+    } else {
+        $messages[] = 'No composer changes detected (vendor.zip skipped).';
+    }
+
+    // 2. Jalankan Database Migration Otomatis
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        $messages[] = 'Database migration executed successfully.';
+    } catch (\Exception $e) {
+        $messages[] = 'Database migration failed: ' . $e->getMessage();
+    }
+
+    // 3. Clear & Recache Laravel
+    Artisan::call('config:clear');
+    Artisan::call('route:clear');
+    Artisan::call('view:clear');
+
+    $messages[] = 'Laravel caches cleared successfully.';
+
+    return response()->json(['status' => 'success', 'details' => $messages]);
+});
+```
+
+---
+
+## 4\. Konfigurasi CI/CD Pipeline GitLab (`.gitlab-ci.yml`)
+
+### Langkah 4.1: Tambahkan Variables di GitLab
 
 Masuk ke **GitLab** > **Settings** > **CI/CD** > **Variables** > **Add variable**:
 
@@ -121,7 +181,7 @@ Masuk ke **GitLab** > **Settings** > **CI/CD** > **Variables** > **Add variable*
 | `FTP_USERNAME` | `deployer@nama-domain.com`             | Masked |
 | `FTP_PASSWORD` | _Password FTP dari Langkah 2.2_        | Masked |
 
-### Langkah 3.2: Buat File `.gitlab-ci.yml`
+### Langkah 4.2: Buat File `.gitlab-ci.yml`
 
 Buat file `.gitlab-ci.yml` di root repository Laravel Anda:
 
@@ -145,24 +205,31 @@ build_job:
     - apt-get update -yqq
     - apt-get install -yqq git unzip libpng-dev libonig-dev libxml2-dev libzip-dev zip curl
 
-    # 2. Install Node.js & NPM (Metode NodeSource)
+    # 2. Install Node.js & NPM
     - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     - apt-get install -yqq nodejs
 
     # 3. Install Extension PHP
     - docker-php-ext-install pdo_mysql mbstring gd zip
 
-    # 4. Install Composer Dependencies
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts --optimize-autoloader
-
-    # 5. Install NPM Dependencies & Build Assets
+    # 4. Build CSS & JS (Vite/Mix)
     - npm ci || npm install
     - npm run build
 
+    # 5. Cek perubahan composer.json / composer.lock
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - |
+      if git diff --name-only HEAD~1 HEAD | grep -E "composer\.(json|lock)"; then
+        echo "Composer file changed. Installing vendor and creating vendor.zip..."
+        composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts --optimize-autoloader
+        zip -r vendor.zip vendor/
+      else
+        echo "No changes in composer files. Skipping vendor.zip creation."
+      fi
+
   artifacts:
     paths:
-      - vendor/
+      - vendor.zip
       - public/build/
     expire_in: 1 hour
   only:
@@ -174,8 +241,9 @@ deploy_ftp_job:
     - build_job
   before_script:
     - apt-get update -yqq
-    - apt-get install -yqq lftp
+    - apt-get install -yqq lftp curl
   script:
+    # 1. Sync file via FTP (Mencakup file kodingan & file migration baru di database/migrations/)
     - |
       lftp -c "
       set ftp:ssl-allow true;
@@ -191,6 +259,7 @@ deploy_ftp_job:
              --exclude-glob .gitlab-ci.yml \
              --exclude-glob .env \
              --exclude-glob node_modules/ \
+             --exclude-glob vendor/ \
              --exclude-glob storage/logs/ \
              --exclude-glob storage/framework/cache/ \
              --exclude-glob storage/framework/sessions/ \
@@ -198,17 +267,20 @@ deploy_ftp_job:
              ./ /;
       quit
       "
+
+    # 2. Trigger Webhook cPanel (Ekstrak Vendor, Jalankan Migration, & Clear Cache)
+    - curl -s https://domain-anda.com/api/deploy-webhook-secret-123
   only:
     - main
 ```
 
 ---
 
-## 4\. Konfigurasi Akhir di cPanel & Cron Jobs
+## 5\. Konfigurasi Akhir di cPanel & Cron Jobs
 
 Setelah pipeline GitLab CI/CD berhasil berjalan (`passed`):
 
-### Langkah 4.1: Buat File `.env` di cPanel
+### Langkah 5.1: Buat File `.env` di cPanel
 
 1. Masuk ke cPanel **File Manager** > buka folder `public_html`.
 2. Buat file baru bernama `.env`.
@@ -229,7 +301,7 @@ DB_USERNAME=user_dbuser
 DB_PASSWORD=password_db_anda
 ```
 
-### Langkah 4.2: Storage Link & Database Migration
+### Langkah 5.2: Storage Link & Database Migration
 
 - **Akses Terminal cPanel:**
 
@@ -241,7 +313,7 @@ cd public_html
 php artisan storage:link
 ```
 
-Atau jalankan perintah berikut di _Terminal_ cPanel:
+Atau jalankan perintah berikut di **Terminal cPanel**:
 
 ```bash
 ln -s /home/USERNAME_CPANEL/storage/app/public /home/USERNAME_CPANEL/public_html/storage
@@ -251,27 +323,10 @@ ln -s /home/USERNAME_CPANEL/storage/app/public /home/USERNAME_CPANEL/public_html
 php artisan migrate --force
 ```
 
-- **Jika Tidak Ada Terminal cPanel:**
-  Jalankan migration melalui **phpMyAdmin** (Import file SQL) dan jalankan route symlink sementara di `routes/web.php`:
+### Langkah 5.3: Pengaturan Cron Jobs di cPanel
+
+Buka menu Cron Jobs di cPanel, setel interval _Once Per Minute ( \* \* \* *)*_, dan masukkan command:
 
 ```bash
-Route::get('/init-app', function () {
-    Artisan::call('storage:link');
-    Artisan::call('migrate', ['--force' => true]);
-    return 'Storage link & Database migration successfully executed.';
-});
+cd /home/USERNAME_CPANEL/public_html && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
-
-### Langkah 4.3: Pengaturan Cron Jobs di cPanel
-
-Untuk menjalankan `php artisan schedule:run` secara otomatis setiap menit:
-
-1. Di cPanel, buka menu **Cron Jobs**.
-2. Pada bagian **Common Settings**, pilih **Once Per Minute (\* \* \* \* \*)**.
-3. Di kolom **Command**, masukkan perintah berikut (sesuaikan path PHP cPanel & path folder domain Anda):
-
-```bash
-/usr/local/bin/php /home/USERNAME_CPANEL/public_html/artisan schedule:run >> /dev/null 2>&1
-```
-
-> **Tip:** Cek lokasi pasti PHP binary di cPanel jika beda versi (misal: `/usr/bin/php` atau `/opt/alt/php83/usr/bin/php`).

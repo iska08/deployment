@@ -1,12 +1,6 @@
 # Panduan Deployment Multi-Application Laravel di _FTP-cPanel_
 
-Panduan ini mencakup pengelolaan CI/CD untuk beberapa aplikasi Laravel sekaligus, menggunakan **PHP 8.3**, **Node.js/Vite**, **database terpisah/gabungan**, dan **Cron Jobs** multi-app.
-
----
-
 ## 1\. Mirroring Repository GitHub ke GitLab Private
-
-Proses mirroring tetap sama seperti single-app, namun mengcakup seluruh mono-repository yang berisi semua sub-aplikasi Anda.
 
 ### Langkah 1.1: Buat Project Private Baru di GitLab
 
@@ -29,7 +23,7 @@ Proses mirroring tetap sama seperti single-app, namun mengcakup seluruh mono-rep
 
 ### Langkah 1.3: Buat Secret di GitHub
 
-1. Buka repo Anda di [GitHub](https://github.com).
+1. Buka repo Monorepo Anda di [GitHub](https://github.com).
 2. Masuk ke **Settings** > **Secrets and variables** > **Actions**.
 3. Klik **New repository secret**:
 
@@ -72,12 +66,13 @@ jobs:
 
 ## 2\. Persiapan Struktur Folder cPanel, Routing `.htaccess`, & Database
 
-Misalkan struktur folder monorepo Anda adalah:
+Struktur folder monorepo:
 
 - `apps/web/` (Main App -> `public_html`)
+
 - `apps/admin/` (Sub-app Admin -> `public_html/admin`)
 
-### Langkah 2.1: Routing Direct `public/` via `.htaccess`
+### Langkah 2.1: Routing Direct `public/` via `.htaccess` (Tanpa Redirect Domain)
 
 #### A. File `.htaccess` di Root Main App (`apps/web/.htaccess`)
 
@@ -85,13 +80,10 @@ Misalkan struktur folder monorepo Anda adalah:
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # 1. Redirect domain nama-domain.id ke nama-domain.com (Permanen 301)
-    RewriteCond %{HTTP_HOST} ^(www\.)?nama-domain\.id$ [NC]
-    RewriteRule ^(.*)$ https://nama-domain.com/$1 [R=301,L]
-
-    # 2. Arahkan semua request ke folder public/ milik Main App
+    # Arahkan semua request ke folder public/ milik Main App
+    RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^$ public/ [L]
-    RewriteRule (.*) public/$1 [L]
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 ```
 
@@ -101,39 +93,103 @@ Misalkan struktur folder monorepo Anda adalah:
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Arahkan semua request ke folder public/ milik Sub-App
+    # Arahkan semua request ke folder public/ milik Sub-App Admin
+    RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^$ public/ [L]
-    RewriteRule (.*) public/$1 [L]
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 ```
 
-### Langkah 2.2: Buat Akun FTP Terpisah atau Utama di cPanel
+### Langkah 2.2: Buat Akun FTP di cPanel
 
-1. Login ke **cPanel** > buka menu **FTP Accounts**.
-2. Buat akun FTP untuk masing-masing aplikasi (atau buat 1 FTP di root domain):
+1. Login ke **cPanel** > **FTP Accounts**.
+2. Buat akun FTP untuk masing-masing aplikasi:
 
-- **App Web (Main App):**
+- **Main App (`web`):**
 - **Log In:** `deployer-web`
 - **Directory:** `public_html`
 
-- **App Admin (Sub-App):**
+- **Sub-App (`admin`):**
 - **Log In:** `deployer-admin`
-- **Directory:** `public_html/admin` (atau `admin.nama-domain.com`)
+- **Directory:** `public_html/admin`
 
 ### Langkah 2.3: Setup Database MySQL di cPanel
 
-Buat database sesuai kebutuhan masing-masing aplikasi via **MySQL Database Wizard** di cPanel:
+Buat database via **MySQL Database Wizard** di cPanel:
 
 - Database Main App: `user_webdb`
 - Database Admin App: `user_admindb`
 
 ---
 
-## 3\. Konfigurasi GitLab CI/CD Pipeline Multi-App
+## 3\. Pendaftaran Route Webhook di Masing-Masing Aplikasi
 
-### Langkah 3.1: Tambahkan Variables di GitLab
+Tambahkan route ini pada file `routes/api.php` di **KEDUA** aplikasi (`apps/web/routes/api.php` dan `apps/admin/routes/api.php`). Route ini bertugas mengekstrak `vendor.zip`, menjalankan `php artisan migrate --force`, serta membersihkan cache secara otomatis.
 
-Di **GitLab** > **Settings** > **CI/CD** > **Variables**, tambahkan akun FTP terpisah:
+```bash
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+
+// Endpoint Webhook Deployment Otomatis
+Route::get('/deploy-webhook-secret-123', function (Request $request) {
+    $zipPath = base_path('vendor.zip');
+    $messages = [];
+
+    // 1. Ekstrak vendor.zip jika ada update composer
+    if (file_exists($zipPath)) {
+        File::deleteDirectory(base_path('vendor'));
+
+        $zip = new ZipArchive;
+        if ($zip->open($zipPath) === TRUE) {
+            $zip->extractTo(base_path());
+            $zip->close();
+            @unlink($zipPath);
+            $messages[] = 'Vendor updated and extracted successfully.';
+        } else {
+            $messages[] = 'Failed to extract vendor.zip.';
+        }
+    } else {
+        $messages[] = 'No composer changes detected (vendor.zip skipped).';
+    }
+
+    // 2. Jalankan Database Migration Otomatis
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        $messages[] = 'Database migration executed successfully.';
+    } catch (\Exception $e) {
+        $messages[] = 'Database migration failed: ' . $e->getMessage();
+    }
+
+    // 3. Clear & Recache Laravel
+    Artisan::call('config:clear');
+    Artisan::call('route:clear');
+    Artisan::call('view:clear');
+
+    $messages[] = 'Laravel caches cleared successfully.';
+
+    return response()->json(['status' => 'success', 'details' => $messages]);
+});
+```
+
+---
+
+## 4\. Konfigurasi GitLab CI/CD Pipeline Multi-App
+
+### Langkah 4.1: Tambahkan Variables di GitLab
+
+Di **GitLab** > **Settings** > **CI/CD** > **Variables**, tambahkan:
 
 | Key              | Value                            | Flags  |
 | ---------------- | -------------------------------- | ------ |
@@ -142,7 +198,7 @@ Di **GitLab** > **Settings** > **CI/CD** > **Variables**, tambahkan akun FTP ter
 | `FTP_USER_ADMIN` | `deployer-admin@nama-domain.com` | Masked |
 | `FTP_PASSWORD`   | _Password FTP dari Langkah 2.2_  | Masked |
 
-### Langkah 3.2: Buat File `.gitlab-ci.yml` (Parallel/Matrix Multi-Build)
+### Langkah 4.2: Buat File `.gitlab-ci.yml`
 
 Buat file `.gitlab-ci.yml` di root monorepo:
 
@@ -176,12 +232,19 @@ build_web:
   <<: *build_definition
   script:
     - cd apps/web
-    - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts --optimize-autoloader
     - npm ci || npm install
     - npm run build
+    - |
+      if git diff --name-only HEAD~1 HEAD | grep -E "apps/web/composer\.(json|lock)"; then
+        echo "Composer file changed in web. Installing vendor and zipping..."
+        composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts --optimize-autoloader
+        zip -r vendor.zip vendor/
+      else
+        echo "No changes in apps/web composer files. Skipping vendor.zip creation."
+      fi
   artifacts:
     paths:
-      - apps/web/vendor/
+      - apps/web/vendor.zip
       - apps/web/public/build/
     expire_in: 1 hour
   only:
@@ -191,12 +254,19 @@ build_admin:
   <<: *build_definition
   script:
     - cd apps/admin
-    - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts --optimize-autoloader
     - npm ci || npm install
     - npm run build
+    - |
+      if git diff --name-only HEAD~1 HEAD | grep -E "apps/admin/composer\.(json|lock)"; then
+        echo "Composer file changed in admin. Installing vendor and zipping..."
+        composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts --optimize-autoloader
+        zip -r vendor.zip vendor/
+      else
+        echo "No changes in apps/admin composer files. Skipping vendor.zip creation."
+      fi
   artifacts:
     paths:
-      - apps/admin/vendor/
+      - apps/admin/vendor.zip
       - apps/admin/public/build/
     expire_in: 1 hour
   only:
@@ -208,7 +278,7 @@ deploy_web:
   dependencies:
     - build_web
   before_script:
-    - apt-get update -yqq && apt-get install -yqq lftp
+    - apt-get update -yqq && apt-get install -yqq lftp curl
   script:
     - |
       lftp -c "
@@ -225,6 +295,7 @@ deploy_web:
              --exclude-glob .gitlab-ci.yml \
              --exclude-glob .env \
              --exclude-glob node_modules/ \
+             --exclude-glob vendor/ \
              --exclude-glob storage/logs/ \
              --exclude-glob storage/framework/cache/ \
              --exclude-glob storage/framework/sessions/ \
@@ -232,6 +303,8 @@ deploy_web:
              ./apps/web/ /;
       quit
       "
+    # Trigger Webhook API Main App
+    - curl -s https://nama-domain.com/api/deploy-webhook-secret-123
   only:
     - main
 
@@ -240,7 +313,7 @@ deploy_admin:
   dependencies:
     - build_admin
   before_script:
-    - apt-get update -yqq && apt-get install -yqq lftp
+    - apt-get update -yqq && apt-get install -yqq lftp curl
   script:
     - |
       lftp -c "
@@ -257,6 +330,7 @@ deploy_admin:
              --exclude-glob .gitlab-ci.yml \
              --exclude-glob .env \
              --exclude-glob node_modules/ \
+             --exclude-glob vendor/ \
              --exclude-glob storage/logs/ \
              --exclude-glob storage/framework/cache/ \
              --exclude-glob storage/framework/sessions/ \
@@ -264,17 +338,17 @@ deploy_admin:
              ./apps/admin/ /;
       quit
       "
+    # Trigger Webhook API Sub-App Admin
+    - curl -s https://nama-domain.com/admin/api/deploy-webhook-secret-123
   only:
     - main
 ```
 
 ---
 
-## 4. Konfigurasi Akhir di cPanel & Multi Cron Jobs
+## 5\. Konfigurasi Akhir di cPanel & Multi Cron Jobs
 
-### Langkah 4.1: Buat File `.env` Masing-Masing Aplikasi
-
-Buat file `.env` terpisah di folder tujuan cPanel:
+### Langkah 5.1: Buat File `.env` Masing-Masing Aplikasi
 
 1. File `.env` di `/public_html/.env` (Main App):
 
@@ -292,42 +366,27 @@ APP_URL=https://nama-domain.com/admin
 DB_DATABASE=user_admindb
 ```
 
-### Langkah 4.2: Storage Link & Database Migration Multi-App
+### Langkah 5.2: Storage Link
 
-Jalankan migrasi dan symlink di masing-masing direktori via Terminal cPanel:
+Jalankan symlink di Terminal cPanel (cukup sekali di awal):
 
-> Main App
-
-```bash
-cd /home/USERNAME_CPANEL/public_html
-```
+<!-- Main App -->
 
 ```bash
-php artisan storage:link
+cd /home/USERNAME_CPANEL/public_html && php artisan storage:link
 ```
+
+<!-- Sub-App Admin -->
 
 ```bash
-php artisan migrate --force
+cd /home/USERNAME_CPANEL/public_html/admin && php artisan storage:link
 ```
 
-> Sub-App (Admin)
+_(Catatan: Migrasi database tidak perlu dijalankan manual lagi dari terminal karena sudah ditangani secara otomatis oleh Webhook API tiap kali push)._
 
-```bash
-cd /home/USERNAME_CPANEL/public_html/admin
-```
+### Langkah 5.3: Pengaturan Multi-Cron Jobs di cPanel
 
-```bash
-php artisan storage:link
-```
-
-```bash
-php artisan migrate --force
-
-```
-
-### Langkah 4.3: Pengaturan Multi-Cron Jobs di cPanel
-
-Daftarkan baris perintah terpisah di **cPanel** > **Cron Jobs** agar scheduler masing-masing aplikasi berjalan independen:
+Daftarkan dua baris perintah di **cPanel** > **Cron Jobs**:
 
 1. **Cron Job Main App:**
 

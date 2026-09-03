@@ -10,32 +10,23 @@ Untuk saat ini, panduan berfokus pada ekosistem **PHP** dan **Framework Laravel*
 
 Pilih jenis deployment yang sesuai dengan kebutuhan Anda melalui pintasan direktori di bawah ini:
 
-### 1. Laravel Framework (Menggunakan Docker)
+### 1. Menggunakan Docker (Laravel Framework)
 
 Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti optimasi _cache_, permissions folder `storage`, dan environment files.
 
-- [➜ Deployment Single Application (Laravel)](./laravel-docker/single-app)
+- [➜ Deployment Single Application (Laravel)](./docker-laravel/single-app)
   _Setup satu project Laravel di VPS._
-- [➜ Deployment Multi Application (Laravel)](./laravel-docker/multi-app)
+- [➜ Deployment Multi Application (Laravel)](./docker-laravel/multi-app)
   _Setup beberapa project Laravel (multi-domain/subdomain) dalam satu VPS menggunakan Apache._
 
-### 2. Laravel Framework (Menggunakan FTP-CPanel)
+### 2. Menggunakan FTP-CPanel (Laravel Framework)
 
 Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti optimasi _cache_, permissions folder `storage`, dan environment files.
 
-- [➜ Deployment Single Application (FTP-CPanel)](./laravel-cpanel-ftp/single-app)
+- [➜ Deployment Single Application (FTP-CPanel)](./ftp-cpanel-laravel/single-app)
   _Setup satu project Laravel di FTP-CPanel._
-- [➜ Deployment Multi Application (FTP-CPanel)](./laravel-cpanel-ftp/multi-app)
+- [➜ Deployment Multi Application (FTP-CPanel)](./ftp-cpanel-laravel/multi-app)
   _Setup beberapa project Laravel (multi-domain/subdomain) dalam satu FTP-CPanel menggunakan Apache._
-
-### 3. PHP Biasa (Native)
-
-Panduan deployment untuk aplikasi PHP tanpa framework (konfigurasi dasar web server dan database).
-
-- [➜ Deployment Single Application (PHP)](./php-ftp/single-app)
-  _Panduan setup satu aplikasi PHP pada satu domain._
-- [➜ Deployment Multi Application (PHP)](./php-ftp/multi-app)
-  _Panduan setup beberapa aplikasi PHP menggunakan Apache Virtual Host._
 
 ---
 

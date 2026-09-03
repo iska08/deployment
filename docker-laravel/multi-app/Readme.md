@@ -1,22 +1,25 @@
 # Panduan Deployment Multi-Application Laravel di _VPS_
 
-Panduan ini menjelaskan langkah-langkah untuk melakukan deploy beberapa aplikasi Laravel dalam satu _VPS_ menggunakan _Docker_, _Apache (vhosts)_, _Let's Encrypt (HTTPS)_, dan otomatisasi _GitLab CI/CD_.
+Panduan ini menjelaskan langkah-langkah untuk melakukan deploy beberapa aplikasi Laravel dalam satu _VPS_ menggunakan _Docker_, _Apache (vhosts)_, _Let's Encrypt (HTTPS)_, otomatisasi _GitLab CI/CD_, serta penyiapan mirroring dari repository GitHub.
+
+---
 
 ## 1\. Koneksi _Domain_ dengan _VPS_
 
-- Masuk ke _Domain_ yang kita miliki, lalu klik `Manage DNS` dan pilih bagian `Records`.<br>
+- Masuk ke _Domain_ yang kita miliki, lalu klik `Manage DNS` dan pilih bagian `Records`.
 - Tambah Records baru dengan isian berikut:
   - _Type_ : A
   - _Name_ : @
   - _Value_ : IP_VPS
   - _TTL_ : 3600
-
 - Pastikan _Domain_ dan _VPS_ sudah terhubung dengan cek di [https://dnschecker.org/](https://dnschecker.org/).
+
+---
 
 ## 2\. Atur _VPS_ agar Bisa Diakses Lewat _Command Prompt_
 
-- Masuk ke _VPS_ yang kita miliki.<br>
-- Klik _Open Console_ dan login ke _VPS_ (_Ubuntu Server_).<br>
+- Masuk ke _VPS_ yang kita miliki.
+- Klik _Open Console_ dan login ke _VPS_ (_Ubuntu Server_).
 - Masuk ke root dan berjalan di folder `(username@name-server:~$)` dan berganti ke `(root@name-server:/home/username#)`.
 
 ```bash
@@ -29,7 +32,7 @@ sudo su
 nano /etc/ssh/sshd_config
 ```
 
-- Cari baris terakhir, ubah isian di bagian _PasswordAuthentication_ dari yang sebelumnya berisi _no_ ke _yes_.<br>
+- Cari baris terakhir, ubah isian di bagian _PasswordAuthentication_ dari yang sebelumnya berisi _no_ ke _yes_.
 - Lakukan _reload_.
 
 ```bash
@@ -47,6 +50,8 @@ ssh username_kita@domain_kita
 ```bash
 sudo su
 ```
+
+---
 
 ## 3\. _Install Docker_ di _VPS_
 
@@ -124,6 +129,8 @@ su - ${USER}
 groups
 ```
 
+---
+
 ## 4\. Proses Membuat _User Deployer_ dan _Private Key_
 
 - Masuk ke root terlebih dahulu `(root@name-server:~#)`.
@@ -138,8 +145,8 @@ sudo su
 sudo adduser deployer
 ```
 
-- Lewati semua isian kecuali _Full Name_ dan pilih _Yes_.<br>
-- Berikan hak akses untuk _deployer_, dengan masuk ke folder home `cd /home/` lalu klik `ls` untuk memastikan folder _deployer_ dan folder dengan username Anda sudah ada.<br>
+- Lewati semua isian kecuali _Full Name_ dan pilih _Yes_.
+- Berikan hak akses untuk _deployer_, dengan masuk ke folder home `cd /home/` lalu klik `ls` untuk memastikan folder _deployer_ dan folder dengan username Anda sudah ada.
 - Buat folder baru untuk aplikasi, ulangi sesuai dengan jumlah aplikasi lalu cek isinya.
 
 ```bash
@@ -172,8 +179,8 @@ chmod 777 -R /home/aplikasi1/storage
 chmod 777 -R /home/aplikasi1/public
 ```
 
-- Ulangi langkah `sudo setfacl -R -m u:deployer:rwx /home/aplikasi1`, `chmod 777 -R /home/aplikasi1/storage`, dan `chmod 777 -R /home/aplikasi1/public` untuk semua aplikasi.<br>
-- Masuk ke user deployer (deployer@name-server:/home$).
+- Ulangi langkah `sudo setfacl -R -m u:deployer:rwx /home/aplikasi1`, `chmod 777 -R /home/aplikasi1/storage`, dan `chmod 777 -R /home/aplikasi1/public` untuk semua aplikasi.
+- Masuk ke user deployer `(deployer@name-server:/home$)`.
 
 ```bash
 su deployer
@@ -191,6 +198,8 @@ ssh-keygen -t rsa
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 ```
 
+---
+
 ## 5\. _Install PHP_, _MySQL_, dan _Apache_ dengan _Docker_
 
 - Keluar dari user deployer.
@@ -199,10 +208,13 @@ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 exit
 ```
 
-- Buat folder baru dengan nama `docker-stack`, lalu masuk ke folder tersebut (root@name-server:/home/docker-stack#).
+- Buat folder baru dengan nama `docker-stack`, lalu masuk ke folder tersebut `(root@name-server:/home/docker-stack#)`.
 
 ```bash
 mkdir docker-stack
+```
+
+```bash
 cd /docker-stack/
 ```
 
@@ -229,7 +241,6 @@ RUN a2enmod rewrite
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Copy virtual host config
-
 COPY vhosts.conf /etc/apache2/sites-available/
 RUN a2dissite 000-default.conf
 RUN a2ensite vhosts.conf
@@ -242,56 +253,56 @@ RUN service apache2 restart
 ```bash
 version: "3.3"
 services:
-    webserver:
+  webserver:
     container_name: webserver
     build: .
     restart: always
     depends_on:
-        - database
+      - database
     volumes:
-        - /home/aplikasi11:/var/www/aplikasi11
-        - /home/aplikasi12:/var/www/aplikasi12
+      - /home/aplikasi1:/var/www/aplikasi1
+      - /home/aplikasi2:/var/www/aplikasi2
     ports:
-        - "80:80"
-        - "443:443"
+      - "80:80"
+      - "443:443"
     networks:
-        - webnet
+      - webnet
 
-database:
+  database:
     container_name: database
     image: mysql:latest
     restart: always
     environment:
-        MYSQL_ROOT_PASSWORD: rootpassword123 # Ganti jika ingin
+      MYSQL_ROOT_PASSWORD: rootpassword123 # Ganti jika ingin
     ports:
-        - "9906:3306"
+      - "9906:3306"
     volumes:
-        - ./dbdata:/var/lib/mysql
+      - ./dbdata:/var/lib/mysql
     networks:
-        - webnet
+      - webnet
 
-phpmyadmin:
+  phpmyadmin:
     container_name: phpmyadmin
     image: phpmyadmin/phpmyadmin:latest
     restart: always
     depends_on:
-        - database
+      - database
     environment:
-        PMA_HOST: database
-        PMA_PORT: 3306
-        PMA_ARBITRARY: 1
-        UPLOAD_LIMIT: 100M
+      PMA_HOST: database
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 100M
     ports:
-        - "8080:80"
+      - "8080:80"
     networks:
-        - webnet
+      - webnet
 
 networks:
-    webnet:
-        driver: bridge
+  webnet:
+    driver: bridge
 ```
 
-> Untuk mengakses database melalui [http://IP\__VPS_:8080](http://IP__VPS_:8080).
+> Untuk mengakses database melalui [http://IP_VPS:8080](http://IP_VPS:8080).
 
 `vhosts.conf`
 
@@ -303,7 +314,7 @@ networks:
     DocumentRoot /var/www/nama-aplikasi1/public
     <Directory /var/www/nama-aplikasi1/public>
         AllowOverride All
-    Require all granted
+        Require all granted
     </Directory>
     ErrorLog ${APACHE_LOG_DIR}/nama-aplikasi1-error.log
     CustomLog ${APACHE_LOG_DIR}/nama-aplikasi1-access.log combined
@@ -319,10 +330,9 @@ networks:
         Require all granted
     </Directory>
 </VirtualHost>
-
 ```
 
-> Ulangi untuk semua aplikasi
+> Ulangi untuk semua aplikasi.
 
 - Cek isi folder.
 
@@ -366,6 +376,8 @@ docker images
 docker container ls
 ```
 
+---
+
 ## 6\. _Install Lets Encrypt HTTPS_ di _VPS_ dengan _Docker_
 
 - Ketikkan perintah ini `(root@...........:var/www/html#)`.
@@ -380,18 +392,86 @@ docker exec -it webserver bash
 certbot --apache -d domain-anda.com -m email-anda@gmail.com
 ```
 
-- _“You must agree in order to register with the ACME server. Do you agree?”_ -> Pilih Y.<br>
-- _“EFF new, campaigns, and ways to support digital freedom.”_ ->Pilih N.<br>
+- _“You must agree in order to register with the ACME server. Do you agree?”_ -> Pilih Y.
+- _“EFF new, campaigns, and ways to support digital freedom.”_ ->Pilih N.
 - Masukkan perintah berikut agar _Domain_ kita terbaca www lalu pilih _Expand_.
 
 ```bash
 certbot --apache -d domain-anda.com -d www.domain-anda.com -m email-anda@gmail.com
 ```
 
-- _“Select the appropriate number [1-2] then [enter] (press ‘c’ to cancel):”_ Pilih yang terdapat nama _Domain_ Anda.<br>
+- _“Select the appropriate number [1-2] then [enter] (press ‘c’ to cancel):”_ Pilih yang terdapat nama _Domain_ Anda.
 - Ulangi untuk aplikasi lainnya.
 
-## 7\. Menambahkan variabel di _Setting CI/CD GitLab_
+---
+
+## 7\. Mirroring Repository GitHub ke GitLab Private
+
+Langkah ini digunakan untuk mensinkronisasikan setiap repository aplikasi dari GitHub ke GitLab Private secara otomatis setiap kali ada perbaruan (`git push`). Ulangi konfigurasi ini pada seluruh project aplikasi Anda.
+
+### Langkah 7.1: Buat Project Private Baru di GitLab
+
+1. Login ke [GitLab](https://gitlab.com).
+2. Klik **New project** > **Create blank project**.
+3. Isi **Project name** (contoh: `aplikasi1`).
+4. Set **Visibility Level** ke **Private**.
+5. Hilangkan centang pada _Initialize repository with a README_.
+6. Klik **Create project**.
+
+### Langkah 7.2: Buat Personal Access Token (PAT) di GitLab
+
+1. Di GitLab, klik foto profil (kiri bawah) > **Preferences** > **Access Tokens**.
+2. Klik **Add new token**:
+
+- **Token name:** `github-mirror-token`
+- **Select scopes:** Centang **`write_repository`** dan **`read_repository`**.
+
+3. Klik **Create personal access token**, lalu **salin token tersebut**.
+
+### Langkah 7.3: Buat Secret di GitHub
+
+1. Buka repo aplikasi Anda di [GitHub](https://github.com).
+2. Masuk ke **Settings** > **Secrets and variables** > **Actions**.
+3. Klik **New repository secret**:
+
+- **Name:** `GITLAB_MIRROR_TOKEN`
+- **Secret:** _Paste token dari Langkah 7.2_
+
+4. Klik **Add secret**.
+
+### Langkah 7.4: Workflow Mirroring di GitHub
+
+Buat file `.github/workflows/mirror-to-gitlab.yml` pada repository project Anda:
+
+```bash
+name: Mirroring to GitLab
+
+on:
+  push:
+    branches:
+      - main # Sesuaikan jika nama branch utama Anda 'master'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_MIRROR_TOKEN }}
+          GITLAB_REPO: gitlab.com/USERNAME_GITLAB/NAMA_REPO_GITLAB.git
+        run: |
+          git remote add gitlab https://oauth2:${GITLAB_TOKEN}@${GITLAB_REPO}
+          git push --prune gitlab +refs/remotes/origin/*:refs/heads/* +refs/tags/*:refs/tags/*
+```
+
+---
+
+## 8\. Menambahkan variabel di _Setting CI/CD GitLab_
 
 - Kembali ke folder `(root@name-server:/home/docker-stack#)`, bisa dengan mengetikkan perintah ini.
 
@@ -414,50 +494,46 @@ cat ~/.ssh/id_rsa
 - Buka _GitLab_ dan masuk ke repository aplikasi Anda, pilih _Setting_ > _CI/CD_ > _Variable_ dan klik _“Add variable”_ untuk menambahkan SSH*PRIVATE_KEY, FILE_HTACCESS, dan FILE_ENV dengan isian berikut dan selalu matikan *“Protect variable”\_:
 
 - SSH_PRIVATE_KEY
-  <br>
-  `Key` => SSH_PRIVATE_KEY
-  <br>
-  `Value` => Isi Private Key
+  - `Key` => SSH_PRIVATE_KEY
+  - `Value` => Isi Private Key
 
-  > Keterangan: sama untuk semua project (cukup buat 1 kali di setiap project)
+> Keterangan: sama untuk semua project (cukup buat 1 kali di setiap project)
 
 - FILE_HTACCESS
-  <br>
-  `Key` => FILE_HTACCESS
-  <br>
-  `Value`
+  - `Key` => FILE_HTACCESS
+  - `Value`
 
-  ```bash
-  <IfModule mod_rewrite.c>
-      RewriteEngine On
-      RewriteRule ^(.\*)$ public/$1 [L]
-  </IfModule>
-  ```
+```bash
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+```
 
-  > Keterangan: sama untuk semua project (cukup buat 1 kali di setiap project)
+> Keterangan: sama untuk semua project (cukup buat 1 kali di setiap project)
 
 - FILE_ENV
-  <br>
-  `Key` => FILE_ENV
-  <br>
-  `Value` => Isi file .env
+  - `Key` => FILE_ENV
+  - `Value` => Isi file .env
 
-  Contoh:
+Contoh:
 
-  ```bash
-  DB_CONNECTION=mysql
-  DB_HOST=database
-  DB_PORT=3306
-  DB_DATABASE=db_aplikasi1
-  DB_USERNAME=user_aplikasi1
-  DB_PASSWORD=pass_aplikasi1
-  ```
+```bash
+DB_CONNECTION=mysql
+DB_HOST=database
+DB_PORT=3306
+DB_DATABASE=db_aplikasi1
+DB_USERNAME=user_aplikasi1
+DB_PASSWORD=pass_aplikasi1
+```
 
 > Keterangan: BERBEDA setiap project (isi .env berbeda, terutama DB_DATABASE, DB_USERNAME, DB_PASSWORD)
 
-## 8\. Membuat _Runner_
+---
 
-- Masuk ke folder `docker-stack` dengan posisi root (root@name-server:/home/docker-stack#) dengan posisi root, lalu jalankan perintah berikut.
+## 9\. Membuat _Runner_
+
+- Masuk ke folder `docker-stack` dengan posisi root `(root@name-server:/home/docker-stack#)`, lalu jalankan perintah berikut.
 
 ```bash
 docker run -d --name gitlab-runner --restart always -v /srv/gitlab-runner/config:/etc/gitlab-runner -v /var/run/docker.sock:/var/run/docker.sock gitlab/gitlab-runner:latest
@@ -469,17 +545,16 @@ docker run -d --name gitlab-runner --restart always -v /srv/gitlab-runner/config
 docker exec -it gitlab-runner gitlab-runner register
 ```
 
-- Masuk ke _GitLab_ tepatnya di repository kita, lalu pilih _Setting_ > _CI/CD_ > _Runners_ lalu klik _Expand_ dan copy _URL_ dan tokennya.<br>
+- Masuk ke _GitLab_ tepatnya di repository kita, lalu pilih _Setting_ > _CI/CD_ > _Runners_ lalu klik _Expand_ dan copy _URL_ dan tokennya.
+
 - Kemudian ikuti _prompt_:
-
-- `Enter GitLab instance URL` => Token dari _project_ aplikasi 1 (ambil dari GitLab)
-- `Enter description` => `runner-aplikasi1`
-- `Enter tags` => `aplikasi1` (atau kosongkan)
-- `Enter optional note` => (kosongkan)
-- `Enter executor` => `shell`
-
-- Kembali ke _GitLab_ dan _uncheck “Enable shared runners for this project”_.<br>
-- Ulangi langkah `docker exec -it gitlab-runner gitlab-runner register` sampai `uncheck “Enable shared runners for this project”` untuk masing-masing aplikasi.<br>
+  - `Enter GitLab instance URL` => Token dari _project_ aplikasi 1 (ambil dari GitLab)
+  - `Enter description` => `runner-aplikasi1`
+  - `Enter tags` => `aplikasi1` (atau kosongkan)
+  - `Enter optional note` => (kosongkan)
+  - `Enter executor` => `shell`
+- Kembali ke _GitLab_ dan _uncheck “Enable shared runners for this project”_.
+- Ulangi langkah `docker exec -it gitlab-runner gitlab-runner register` sampai `uncheck “Enable shared runners for this project”` untuk masing-masing aplikasi.
 - Untuk memberikan akses user _deployer_ agar memiliki _group_ yang sama untuk melakukan akses terhadap _docker_ jalankan perintah berikut:
 
 ```bash
@@ -492,15 +567,16 @@ sudo usermod -aG docker deployer
 docker exec -it gitlab-runner gitlab-runner list
 ```
 
-## 9\. Menambahkan File `.gitlab-ci.yml`
+---
 
-- Buka project _Laravel_ dan buat file `.gitlab-ci.yml`.<br>
+## 10\. Menambahkan File `.gitlab-ci.yml`
+
+- Buka project _Laravel_ dan buat file `.gitlab-ci.yml`.
 - Masukkan kode berikut ke file `.gitlab-ci.yml`:
 
 ```bash
 stages:
-
-- deploy
+    - deploy
 
 Deploy:
     stage: deploy
@@ -617,14 +693,17 @@ script:
     - echo "Deployment selesai! Cron job untuk sitemap telah diaktifkan!"
 ```
 
-- Untuk VAR*CLONE_KEY kita masuk ke \_Gitlab* lalu klik foto profil dan pilih _“Edit profile”_, kemudian cari _“Access Tokens”_.<br>
-- Untuk _“Token name”_ isi dengan _deployer_ dan untuk _“Select scopes”_ checklist semuanya lalu klik _“Create personal access token”_.<br>
-- Copy token yang sudah dibuat dan letakkan di VAR_CLONE_KEY tadi.<br>
-- Ganti isi VAR*USER dengan \_deployer*.<br>
-- Ganti isi VAR*IP dengan IP \_VPS* Anda.<br>
+- Untuk **VAR_CLONE_KEY** kita masuk ke _GitLab_ lalu klik foto profil dan pilih **“Edit profile”**, kemudian cari **“Access Tokens”**.
+
+- Untuk **“Token name”** isi dengan **deployer** dan untuk **“Select scopes”** checklist semuanya lalu klik **“Create personal access token”**.
+- Copy token yang sudah dibuat dan letakkan di **VAR_CLONE_KEY** tadi.
+- Ganti isi **VAR_USER** dengan **deployer**.
+- Ganti isi **VAR_IP** dengan **IP_VPS** Anda.
 - Ulangi untuk aplikasi yang lain.
 
-## 10\. Tambah permission ke folder /home/aplikasi1 (Opsional)
+---
+
+## 11\. Tambah permission ke folder `/home/aplikasi1` (Opsional)
 
 Jika muncul pesan error _“/home/aplikasi1/.git: Permission denied”_ saat push ke repository, jalankan perintah di bawah dan pastikan berada di folder dalam mode root `(root@name-server:/home/aplikasi1#)`.
 
@@ -632,9 +711,11 @@ Jika muncul pesan error _“/home/aplikasi1/.git: Permission denied”_ saat pus
 sudo setfacl -R -m u:deployer:rwx /home/aplikasi1/
 ```
 
-## 11\. Tambah permission ke folder storage dan public (Opsional)
+---
 
-- Coba akses website, jika terdapat pesan error karena tidak ada akses folder storage maka jalankan perintah di bawah.<br>
+## 12\. Tambah permission ke folder storage dan public (Opsional)
+
+- Coba akses website, jika terdapat pesan error karena tidak ada akses folder storage maka jalankan perintah di bawah.
 - Tetap di folder `(root@name-server:/home/aplikasi1#)` dalam mode root lalu jalankan 2 perintah di bawah ini.
 
 ```bash
