@@ -108,12 +108,12 @@ Di root direktori project Laravel Anda (sejajar `composer.json`), buat atau sesu
 
 ## 3\. Pendaftaran Route Webhook di Laravel (`routes/api.php`)
 
-1. Aktifkan Ekstensi PHP Zip:
+### Langkah 3.1: Aktifkan Ekstensi PHP Zip:
 
 - Buka **cPanel** > **Select PHP Version**.
 - Di tab **Extensions**, pastikan modul `zip` sudah dicentang/diaktifkan.
 
-2. Buka file `routes/api.php` pada project Laravel Anda dan tambahkan endpoint webhook di bagian bawah:
+### Langkah 3.2: Buka file `routes/api.php` pada project Laravel Anda dan tambahkan endpoint webhook di bagian bawah:
 
 ```bash
 <?php

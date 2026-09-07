@@ -124,12 +124,12 @@ Buat database via **MySQL Database Wizard** di cPanel:
 
 ## 3\. Pendaftaran Route Webhook di Masing-Masing Aplikasi
 
-1. Aktifkan Ekstensi PHP Zip:
+### Langkah 3.1: Aktifkan Ekstensi PHP Zip:
 
 - Buka **cPanel** > **Select PHP Version**.
 - Di tab **Extensions**, pastikan modul `zip` sudah dicentang/diaktifkan.
 
-2. Tambahkan route ini pada file `routes/api.php` di **KEDUA** aplikasi (`apps/web/routes/api.php` dan `apps/admin/routes/api.php`). Route ini bertugas mengekstrak `vendor.zip`, menjalankan `php artisan migrate --force`, serta membersihkan cache secara otomatis.
+### Langkah 3.2: Tambahkan route ini pada file `routes/api.php` di **KEDUA** aplikasi (`apps/web/routes/api.php` dan `apps/admin/routes/api.php`). Route ini bertugas mengekstrak `vendor.zip`, menjalankan `php artisan migrate --force`, serta membersihkan cache secara otomatis.
 
 ```bash
 <?php
