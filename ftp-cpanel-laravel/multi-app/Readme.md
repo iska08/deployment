@@ -124,49 +124,56 @@ Buat database via **MySQL Database Wizard** di cPanel:
 
 ## 3\. Pendaftaran Route Webhook di Masing-Masing Aplikasi
 
-Tambahkan route ini pada file `routes/api.php` di **KEDUA** aplikasi (`apps/web/routes/api.php` dan `apps/admin/routes/api.php`). Route ini bertugas mengekstrak `vendor.zip`, menjalankan `php artisan migrate --force`, serta membersihkan cache secara otomatis.
+1. Aktifkan Ekstensi PHP Zip:
+
+- Buka **cPanel** > **Select PHP Version**.
+- Di tab **Extensions**, pastikan modul `zip` sudah dicentang/diaktifkan.
+
+2. Tambahkan route ini pada file `routes/api.php` di **KEDUA** aplikasi (`apps/web/routes/api.php` dan `apps/admin/routes/api.php`). Route ini bertugas mengekstrak `vendor.zip`, menjalankan `php artisan migrate --force`, serta membersihkan cache secara otomatis.
 
 ```bash
 <?php
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-
-// Endpoint Webhook Deployment Otomatis
 Route::get('/deploy-webhook-secret-123', function (Request $request) {
+    set_time_limit(300);
+    ini_set('memory_limit', '512M');
+
     $zipPath = base_path('vendor.zip');
+    $vendorPath = base_path('vendor');
     $messages = [];
 
-    // 1. Ekstrak vendor.zip jika ada update composer
+    // 1. Ekstrak vendor.zip jika file ada
     if (file_exists($zipPath)) {
-        File::deleteDirectory(base_path('vendor'));
 
-        $zip = new ZipArchive;
-        if ($zip->open($zipPath) === TRUE) {
-            $zip->extractTo(base_path());
-            $zip->close();
-            @unlink($zipPath);
-            $messages[] = 'Vendor updated and extracted successfully.';
-        } else {
-            $messages[] = 'Failed to extract vendor.zip.';
+        // Paksa hapus folder vendor menggunakan perintah Linux
+        if (file_exists($vendorPath)) {
+            exec("rm -rf " . escapeshellarg($vendorPath) . " 2>&1", $outputRm, $returnRm);
+            if ($returnRm === 0) {
+                $messages[] = 'Folder vendor lama berhasil dihapus (via shell rm).';
+            } else {
+                $messages[] = 'Gagal menghapus folder vendor lama: ' . implode(" ", $outputRm);
+            }
         }
+
+        // Ekstrak vendor.zip menggunakan perintah Linux 'unzip'
+        exec("unzip -o " . escapeshellarg($zipPath) . " -d " . escapeshellarg(base_path()) . " 2>&1", $outputUnzip, $returnUnzip);
+
+        if ($returnUnzip === 0) {
+            @unlink($zipPath); // Hapus zip setelah selesai
+            $messages[] = 'vendor.zip berhasil diekstrak (via shell unzip).';
+        } else {
+            $messages[] = 'Gagal ekstrak vendor.zip: ' . implode(" ", $outputUnzip);
+        }
+
     } else {
-        $messages[] = 'No composer changes detected (vendor.zip skipped).';
+        $messages[] = 'File vendor.zip tidak ditemukan (skip vendor update).';
     }
 
-    // 2. Jalankan Database Migration Otomatis
+    // 2. Jalankan Migration
     try {
         Artisan::call('migrate', ['--force' => true]);
         $messages[] = 'Database migration executed successfully.';
@@ -174,14 +181,13 @@ Route::get('/deploy-webhook-secret-123', function (Request $request) {
         $messages[] = 'Database migration failed: ' . $e->getMessage();
     }
 
-    // 3. Clear & Recache Laravel
+    // 3. Clear Cache
     Artisan::call('config:clear');
     Artisan::call('route:clear');
     Artisan::call('view:clear');
-
     $messages[] = 'Laravel caches cleared successfully.';
 
-    return response()->json(['status' => 'success', 'details' => $messages]);
+    return response.json(['status' => 'success', 'details' => $messages]);
 });
 ```
 
