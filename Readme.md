@@ -1,8 +1,8 @@
 # 🚀 Kumpulan Tutorial Deployment
 
-Repositori ini berisi panduan langkah-demi-langkah (_step-by-step_) untuk melakukan deployment aplikasi web, baik untuk arsitektur aplikasi tunggal (_single application_) maupun banyak aplikasi (_multi-application_) dalam satu server.
+Repositori ini berisi panduan langkah-demi-langkah (_step-by-step_) untuk melakukan deployment website dan aplikasi web ke berbagai jenis hosting.
 
-Untuk saat ini, panduan berfokus pada ekosistem **PHP** dan **Framework Laravel** menggunakan VPS (Virtual Private Server) dan Web Server Apache (`sites-available`).
+Panduan mencakup deployment aplikasi **PHP** dan **Laravel** melalui FTP, cPanel, Docker, VPS, serta hosting InfinityFree.
 
 ---
 
@@ -28,11 +28,18 @@ Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti 
 - [➜ Deployment Multi Application (FTP-CPanel)](./ftp-cpanel-laravel/multi-app)
   _Setup beberapa project Laravel (multi-domain/subdomain) dalam satu FTP-CPanel menggunakan Apache._
 
+### 3. Menggunakan FTP di InfinityFree (PHP & HTML)
+
+Panduan untuk mengunggah website PHP/HTML sederhana ke hosting InfinityFree menggunakan FTP, tanpa Laravel.
+
+- [➜ Deployment PHP & HTML ke InfinityFree](./ftp-infinityfree-php-html/Readme.md)
+  _Deploy otomatis website PHP/HTML dari GitHub melalui GitLab CI/CD dan FTP ke InfinityFree._
+
 ---
 
-## 🛠️ Prasyarat Umum (Prerequisites)
+## 🛠️ Prasyarat
 
-Sebelum memulai tutorial di atas, pastikan server Anda sudah terinstall komponen dasar berikut:
+Prasyarat berbeda untuk setiap panduan. Ikuti kebutuhan server dan aplikasi yang tercantum di panduan masing-masing. Panduan VPS/Docker umumnya memerlukan:
 
 - **OS:** Ubuntu Server (atau distro Linux sejenis)
 - **Web Server:** Apache2
@@ -40,11 +47,13 @@ Sebelum memulai tutorial di atas, pastikan server Anda sudah terinstall komponen
 - **PHP:** Sesuai versi yang dibutuhkan aplikasi (lengkap dengan ekstensi seperti `php-xml`, `php-mbstring`, dll.)
 - **Version Control:** Git
 
+Panduan InfinityFree menggunakan hosting bersama, jadi tidak memerlukan VPS atau instalasi Apache. Alur deploy otomatisnya memerlukan repository GitHub, GitLab, dan GitLab CI/CD.
+
 ---
 
 ## 📝 Catatan Penting untuk Apache
 
-Bagi Anda yang mengambil jalur **Multi Application**, pastikan untuk selalu memeriksa konfigurasi file Virtual Host Anda di direktori:
+Bagi Anda yang mengambil jalur **Multi Application** di VPS, pastikan untuk selalu memeriksa konfigurasi file Virtual Host Anda di direktori:
 
 ```bash
 /etc/apache2/sites-available/
