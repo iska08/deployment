@@ -19,7 +19,7 @@ Panduan ini untuk website PHP/HTML biasa, bukan Laravel. GitLab menjadi sumber p
 1. Pastikan kode website PHP, HTML, CSS, dan JavaScript berada di root repository GitHub.
 2. Gunakan branch utama `main`. Jika repository memakai nama branch lain, sesuaikan nama branch di kedua file workflow/pipeline pada panduan ini.
 3. Pastikan halaman awal, misalnya `index.php` atau `index.html`, berada di root project.
-4. Jangan masukkan password FTP, token, atau file konfigurasi rahasia ke repository. Jika file `.env` digunakan, tambahkan ke `.gitignore`.
+4. Jangan masukkan password FTP, token, atau file konfigurasi rahasia ke repository.
 
 Contoh struktur:
 
@@ -51,19 +51,16 @@ website-saya/
 
 | Nama secret | Nilai |
 | --- | --- |
-| `GITLAB_MIRROR_TOKEN` | Personal Access Token GitLab |
+| `GITLAB_TOKEN` | Personal Access Token GitLab |
 
 ### 2.3 Tambahkan workflow mirror di GitHub
 
 Buat file `.github/workflows/mirror-to-gitlab.yml`:
 
 ```bash
-name: Mirror GitHub to GitLab
+name: Mirror to GitLab
 
-on:
-  push:
-    branches:
-      - main
+on: [push]
 
 jobs:
   mirror:
@@ -74,15 +71,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Push main to GitLab
-        env:
-          GITLAB_TOKEN: ${{ secrets.GITLAB_MIRROR_TOKEN }}
-        run: |
-          git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/USERNAME/website-saya.git"
-          git push gitlab HEAD:main
+      - name: Push to GitLab
+        uses: yesolutions/mirror-action@master
+        with:
+          REMOTE: "https://gitlab.com/USERNAME/website-saya.git"
+          GIT_USERNAME: "oauth2"
+          GIT_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
 ```
 
-Ganti `USERNAME/website-saya` dengan path project GitLab yang benar. Commit dan push file workflow ini ke branch `main`. Setelah itu, setiap push ke `main` akan memicu GitHub Actions untuk mengirim commit ke branch `main` di GitLab. Periksa tab **Actions** di GitHub untuk memastikan proses mirror berhasil.
+Ganti `USERNAME/website-saya` dengan path project GitLab tujuan. Simpan file sebagai `.github/workflows/mirror-to-gitlab.yml` di repository website. Workflow ini berjalan setiap kali ada push ke GitHub dan menggunakan action yang mencerminkan repository ke URL GitLab yang ditentukan. Periksa tab **Actions** di GitHub untuk memastikan proses mirror berhasil.
 
 > Gunakan token hanya sebagai GitHub Actions secret. Jangan menambahkan URL yang berisi token ke repository atau mencetaknya di log.
 
@@ -90,7 +87,7 @@ Ganti `USERNAME/website-saya` dengan path project GitLab yang benar. Commit dan 
 
 1. Buat atau pilih akun hosting dan domain dari InfinityFree Client Area, lalu tunggu hingga akun aktif.
 2. Buka detail FTP akun di Client Area dan catat host FTP, username, password, serta port yang diberikan. Nilainya khusus untuk akun Anda.
-3. Periksa direktori web publik yang ditampilkan akun. Umumnya direktori tersebut bernama `htdocs`; gunakan nama/path persis seperti yang terlihat setelah login FTP.
+3. Periksa direktori web publik setelah login FTP. Umumnya bernama `htdocs`. Jika login FTP langsung membuka direktori web publik, catat bahwa tujuan upload-nya adalah direktori saat ini (`./`).
 4. Sebelum menyiapkan CI/CD, sambungkan sekali dengan aplikasi FTP seperti FileZilla dan pastikan Anda dapat melihat direktori web publik.
 5. Pastikan `index.php` atau `index.html` ada di direktori tersebut agar domain menampilkan halaman utama.
 
@@ -103,7 +100,6 @@ Di GitLab project, buka **Settings > CI/CD > Variables** dan tambahkan variables
 | `FTP_SERVER` | Host FTP dari Client Area | Masked |
 | `FTP_USERNAME` | Username FTP dari Client Area | Masked |
 | `FTP_PASSWORD` | Password FTP dari Client Area | Masked |
-| `FTP_REMOTE_DIR` | Direktori web publik, misalnya `htdocs` | Bukan rahasia |
 
 Aktifkan **Masked** untuk tiga variable kredensial. Aktifkan **Protected** hanya jika branch `main` juga sudah diatur sebagai protected branch; jika tidak, job tidak akan menerima variable tersebut. Jangan menaruh kredensial di `.gitlab-ci.yml`.
 
@@ -127,7 +123,6 @@ deploy_ftp:
     - test -n "$FTP_SERVER" || (echo "FTP_SERVER belum diatur"; exit 1)
     - test -n "$FTP_USERNAME" || (echo "FTP_USERNAME belum diatur"; exit 1)
     - test -n "$FTP_PASSWORD" || (echo "FTP_PASSWORD belum diatur"; exit 1)
-    - test -n "$FTP_REMOTE_DIR" || (echo "FTP_REMOTE_DIR belum diatur"; exit 1)
     - |
       lftp -c "
       set net:max-retries 2;
@@ -141,14 +136,12 @@ deploy_ftp:
              --exclude-glob .gitlab-ci.yml \
              --exclude-glob .gitignore \
              --exclude-glob README.md \
-             --exclude-glob .env \
-             --exclude-glob .env.* \
-             ./ \"$FTP_REMOTE_DIR\";
+             ./ htdocs/;
       bye
       "
 ```
 
-Pipeline ini mengunggah perubahan dari root repository ke direktori web yang ditentukan di `FTP_REMOTE_DIR`. File konfigurasi pipeline dan file development yang dikecualikan tidak diunggah. `--ignore-time` membuat sinkronisasi tidak hanya bergantung pada timestamp file.
+Pada contoh ini, pipeline mengunggah isi repository ke `htdocs/`. Jika login FTP Anda langsung membuka direktori web publik, ganti `htdocs/` pada perintah `mirror` menjadi `./`. Web server akan menampilkan `index.php` atau `index.html` secara otomatis selama file tersebut berada langsung di direktori web publik; nama tujuan upload tetap perlu sesuai dengan struktur FTP akun. File konfigurasi pipeline dan file development yang dikecualikan tidak diunggah. `--ignore-time` membuat sinkronisasi tidak hanya bergantung pada timestamp file.
 
 Perintah di atas tidak menghapus file yang hanya ada di hosting. Ini disengaja agar file hosting lain tidak terhapus otomatis; jika menghapus file dari repository, hapus file terkait di hosting secara manual setelah memastikan file tersebut memang tidak diperlukan.
 
@@ -162,11 +155,11 @@ Perintah di atas tidak menghapus file yang hanya ada di hosting. Ini disengaja a
 
 ## Pemecahan Masalah
 
-- **GitHub Actions gagal:** Pastikan secret `GITLAB_MIRROR_TOKEN` valid, memiliki izin push, dan URL project GitLab pada workflow benar.
+- **GitHub Actions gagal:** Pastikan secret `GITLAB_TOKEN` valid, memiliki izin push, dan URL project GitLab pada workflow benar.
 - **Pipeline tidak berjalan di GitLab:** Pastikan mirror berhasil masuk ke branch `main`, CI/CD tersedia untuk project, dan file `.gitlab-ci.yml` ada di root repository.
 - **Variable FTP kosong di job:** Periksa nama variables. Jika ditandai Protected, pastikan branch `main` juga protected.
 - **FTP login gagal:** Salin ulang host, username, dan password dari Client Area. Gunakan detail dan mode koneksi yang didukung akun.
-- **Pipeline sukses tetapi website tidak berubah:** Periksa `FTP_REMOTE_DIR`, lokasi file `index.php`/`index.html`, dan log job untuk melihat direktori tujuan serta hasil `lftp`.
+- **Pipeline sukses tetapi website tidak berubah:** Periksa apakah tujuan upload `htdocs/` atau `./` sesuai dengan struktur FTP akun, lokasi file `index.php`/`index.html`, dan log job untuk melihat hasil `lftp`.
 - **PHP source code tampil di browser:** Jangan biarkan halaman tersebut tersedia untuk publik. Pastikan file berekstensi `.php` dan hosting memproses PHP sebelum mengunggah kembali.
 
 ## Catatan
