@@ -125,12 +125,15 @@ deploy_ftp:
     - test -n "$FTP_PASSWORD" || (echo "FTP_PASSWORD belum diatur"; exit 1)
     - |
       lftp -c "
-      set net:max-retries 2;
-      set net:timeout 20;
+      set net:max-retries 5;
+      set net:timeout 30;
+      set net:reconnect-interval-base 5;
+      set net:reconnect-interval-max 30;
       open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
       mirror --reverse \
              --verbose \
              --ignore-time \
+             --no-perms \
              --exclude-glob .git/ \
              --exclude-glob .github/ \
              --exclude-glob .gitlab-ci.yml \
@@ -141,7 +144,7 @@ deploy_ftp:
       "
 ```
 
-Pada contoh ini, pipeline mengunggah isi repository ke `htdocs/`. Jika login FTP Anda langsung membuka direktori web publik, ganti `htdocs/` pada perintah `mirror` menjadi `./`. Web server akan menampilkan `index.php` atau `index.html` secara otomatis selama file tersebut berada langsung di direktori web publik; nama tujuan upload tetap perlu sesuai dengan struktur FTP akun. File konfigurasi pipeline dan file development yang dikecualikan tidak diunggah. `--ignore-time` membuat sinkronisasi tidak hanya bergantung pada timestamp file.
+Pada contoh ini, pipeline mengunggah isi repository ke `htdocs/`. Jika login FTP Anda langsung membuka direktori web publik, ganti `htdocs/` pada perintah `mirror` menjadi `./`. Web server akan menampilkan `index.php` atau `index.html` secara otomatis selama file tersebut berada langsung di direktori web publik; nama tujuan upload tetap perlu sesuai dengan struktur FTP akun. File konfigurasi pipeline dan file development yang dikecualikan tidak diunggah. `--ignore-time` membuat sinkronisasi tidak hanya bergantung pada timestamp file. `--no-perms` mencegah `lftp` menjalankan `chmod`, yang dapat ditolak oleh FTP hosting bersama.
 
 Perintah di atas tidak menghapus file yang hanya ada di hosting. Ini disengaja agar file hosting lain tidak terhapus otomatis; jika menghapus file dari repository, hapus file terkait di hosting secara manual setelah memastikan file tersebut memang tidak diperlukan.
 
@@ -159,6 +162,8 @@ Perintah di atas tidak menghapus file yang hanya ada di hosting. Ini disengaja a
 - **Pipeline tidak berjalan di GitLab:** Pastikan mirror berhasil masuk ke branch `main`, CI/CD tersedia untuk project, dan file `.gitlab-ci.yml` ada di root repository.
 - **Variable FTP kosong di job:** Periksa nama variables. Jika ditandai Protected, pastikan branch `main` juga protected.
 - **FTP login gagal:** Salin ulang host, username, dan password dari Client Area. Gunakan detail dan mode koneksi yang didukung akun.
+- **Log menampilkan `550 Could not change perms` atau `chmod: Access failed`:** Pastikan opsi `--no-perms` ada pada perintah `mirror`; InfinityFree/shared hosting dapat menolak perubahan permission lewat FTP.
+- **Log menampilkan `Fatal error: max-retries exceeded` saat transfer file:** Pipeline akan mencoba ulang koneksi beberapa kali. Jika masih terjadi, periksa log FTP untuk respons server, pastikan host dan direktori tujuan benar, lalu jalankan ulang pipeline; kegagalan berulang dapat mengindikasikan koneksi FTP terputus atau server menolak transfer file tersebut.
 - **Pipeline sukses tetapi website tidak berubah:** Periksa apakah tujuan upload `htdocs/` atau `./` sesuai dengan struktur FTP akun, lokasi file `index.php`/`index.html`, dan log job untuk melihat hasil `lftp`.
 - **PHP source code tampil di browser:** Jangan biarkan halaman tersebut tersedia untuk publik. Pastikan file berekstensi `.php` dan hosting memproses PHP sebelum mengunggah kembali.
 
