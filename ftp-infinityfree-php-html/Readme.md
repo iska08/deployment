@@ -125,24 +125,25 @@ deploy_ftp:
     - test -n "$FTP_PASSWORD" || (echo "FTP_PASSWORD belum diatur"; exit 1)
     - |
       lftp -c "
-      set net:max-retries 5;
-      set net:timeout 30;
-      set net:reconnect-interval-base 5;
-      set net:reconnect-interval-max 30;
-      set ftp:passive-mode true;
-      debug 3;
-      open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
-      mirror --reverse \
-             --verbose \
-             --ignore-time \
-             --no-perms \
-             --exclude-glob .git/ \
-             --exclude-glob .github/ \
-             --exclude-glob .gitlab-ci.yml \
-             --exclude-glob .gitignore \
-             --exclude-glob README.md \
-             ./ htdocs/;
-      bye
+        set net:max-retries 10;
+        set net:timeout 60;
+        set ftp:passive-mode true;
+        set xfer:clobber true;
+        debug 3;
+        open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
+        put assets/profile.jpg -o htdocs/assets/profile.jpg;
+        mirror --reverse \
+          --verbose \
+          --ignore-time \
+          --no-perms \
+          --parallel=1 \
+          --exclude-glob .git/ \
+          --exclude-glob .github/ \
+          --exclude-glob .gitlab-ci.yml \
+          --exclude-glob .gitignore \
+          --exclude-glob README.md \
+          ./ htdocs/;
+        bye
       "
 ```
 
