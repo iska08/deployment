@@ -30,10 +30,17 @@ Panduan deployment khusus Laravel yang membutuhkan konfigurasi tambahan seperti 
 
 ### 3. Menggunakan FTP di InfinityFree (PHP & HTML)
 
-Panduan untuk mengunggah website PHP/HTML sederhana ke hosting InfinityFree menggunakan FTP, tanpa Laravel.
+Panduan untuk mengunggah website PHP/HTML sederhana ke hosting InfinityFree menggunakan FTP.
 
 - [➜ Deployment PHP & HTML ke InfinityFree](./ftp-infinityfree-php-html/Readme.md)
   _Deploy otomatis website PHP/HTML dari GitHub melalui GitLab CI/CD dan FTP ke InfinityFree._
+
+### 4. Menggunakan GitHub di Vercel (PHP & HTML)
+
+Panduan untuk mengunggah website PHP/HTML sederhana ke hosting Vercel menggunakan GitHub.
+
+- [➜ Deployment PHP & HTML ke Vercel](./github-vercel-php-html/Readme.md)
+  _Deploy otomatis website PHP/HTML dari GitHub ke Vercel._
 
 ---
 
