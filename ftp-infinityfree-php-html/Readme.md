@@ -1,6 +1,6 @@
 # Deploy Otomatis Website PHP & HTML ke InfinityFree
 
-Panduan ini menyiapkan alur berikut: perubahan di branch `main` pada GitHub otomatis disalin ke GitLab, lalu pipeline GitLab CI/CD mengunggah file website melalui FTP ke InfinityFree.
+Panduan ini menyiapkan alur berikut: perubahan di branch `main` pada GitHub otomatis disalin ke GitLab, lalu pipeline GitLab CI/CD mengemas seluruh file menjadi arsip ZIP, mengunggahnya melalui FTP ke InfinityFree, dan mengekstraknya secara otomatis menggunakan skrip PHP di server.
 
 ```bash
 Push ke GitHub (main)
@@ -9,10 +9,10 @@ Push ke GitHub (main)
 GitHub Actions -- mirror --> GitLab
                               |
                               v
-                     GitLab CI/CD -- FTP --> InfinityFree
+                     GitLab CI/CD -- ZIP + FTP --> InfinityFree (Auto-Extract)
 ```
 
-Panduan ini untuk website PHP/HTML biasa, bukan Laravel. GitLab menjadi sumber pipeline dan kredensial FTP; file website tidak perlu diedit langsung dari File Manager setiap kali ada perubahan.
+Panduan ini untuk website PHP/HTML biasa, bukan Laravel. Metode pengarsipan ZIP dipilih untuk menghindari pembatasan koneksi aktif (_data connection_) dan error pembatasan _bandwidth_ dari server FTP gratisan InfinityFree.
 
 ## 1. Siapkan Repository
 
@@ -49,8 +49,8 @@ website-saya/
 2. Simpan token saat dibuat; jangan tempelkan token langsung ke file workflow.
 3. Di GitHub repository, buka **Settings > Secrets and variables > Actions** lalu tambahkan:
 
-| Nama secret | Nilai |
-| --- | --- |
+| Nama secret    | Nilai                        |
+| -------------- | ---------------------------- |
 | `GITLAB_TOKEN` | Personal Access Token GitLab |
 
 ### 2.3 Tambahkan workflow mirror di GitHub
@@ -79,29 +79,53 @@ jobs:
           GIT_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
 ```
 
-Ganti `USERNAME/website-saya` dengan path project GitLab tujuan. Simpan file sebagai `.github/workflows/mirror-to-gitlab.yml` di repository website. Workflow ini berjalan setiap kali ada push ke GitHub dan menggunakan action yang mencerminkan repository ke URL GitLab yang ditentukan. Periksa tab **Actions** di GitHub untuk memastikan proses mirror berhasil.
+Ganti `USERNAME/website-saya` dengan path project GitLab tujuan. Simpan file sebagai `.github/workflows/mirror-to-gitlab.yml` di repository website.
 
 > Gunakan token hanya sebagai GitHub Actions secret. Jangan menambahkan URL yang berisi token ke repository atau mencetaknya di log.
 
-## 3. Siapkan FTP InfinityFree
+## 3. Siapkan FTP InfinityFree & Skrip Ekstraktor
 
 1. Buat atau pilih akun hosting dan domain dari InfinityFree Client Area, lalu tunggu hingga akun aktif.
-2. Buka detail FTP akun di Client Area dan catat host FTP, username, password, serta port yang diberikan. Nilainya khusus untuk akun Anda.
-3. Periksa direktori web publik setelah login FTP. Umumnya bernama `htdocs`. Jika login FTP langsung membuka direktori web publik, catat bahwa tujuan upload-nya adalah direktori saat ini (`./`).
-4. Sebelum menyiapkan CI/CD, sambungkan sekali dengan aplikasi FTP seperti FileZilla dan pastikan Anda dapat melihat direktori web publik.
-5. Pastikan `index.php` atau `index.html` ada di direktori tersebut agar domain menampilkan halaman utama.
+2. Buka detail FTP akun di Client Area dan catat host FTP, username, password, serta port yang diberikan.
+3. Sambungkan menggunakan aplikasi FTP seperti FileZilla atau File Manager, lalu pastikan Anda masuk ke direktori web publik (`htdocs`).
+4. Buat file helper bernama **`unzip.php`** di dalam folder `htdocs/` Anda untuk menangani ekstraksi otomatis dengan kode berikut:
+
+```bash
+<?php
+// Token keamanan untuk ekstraksi
+$secret = 'RAHASIA_ZIP_DEPLOY';
+
+if (!isset($_GET['token']) || $_GET['token'] !==$secret) {
+    http_response_code(403);
+    exit("Akses ditolak: Token salah.");
+}
+
+$zipFile = 'deploy.zip';
+if (file_exists($zipFile)) {$zip = new ZipArchive;
+    if ($zip->open($zipFile) === TRUE) {
+        $zip->extractTo('./');$zip->close();
+        unlink($zipFile); // Hapus arsip zip setelah selesai
+        unlink(__FILE__); // Hapus file unzip.php ini demi keamanan
+        echo "SUKSES: Seluruh file berhasil diekstrak!";
+    } else {
+        echo "GAGAL: Tidak dapat membuka arsip ZIP.";
+    }
+} else {
+    echo "GAGAL: File deploy.zip tidak ditemukan di direktori.";
+}
+```
 
 ## 4. Simpan Kredensial FTP di GitLab
 
 Di GitLab project, buka **Settings > CI/CD > Variables** dan tambahkan variables berikut:
 
-| Key | Value | Pengaturan |
-| --- | --- | --- |
-| `FTP_SERVER` | Host FTP dari Client Area | Masked |
-| `FTP_USERNAME` | Username FTP dari Client Area | Masked |
-| `FTP_PASSWORD` | Password FTP dari Client Area | Masked |
+| Key            | Value                         | Pengaturan |
+| -------------- | ----------------------------- | ---------- |
+| `FTP_SERVER`   | Host FTP dari Client Area     | Masked     |
+| `FTP_USERNAME` | Username FTP dari Client Area | Masked     |
+| `FTP_PASSWORD` | Password FTP dari Client Area | Masked     |
 
-Aktifkan **Masked** untuk tiga variable kredensial. Aktifkan **Protected** hanya jika branch `main` juga sudah diatur sebagai protected branch; jika tidak, job tidak akan menerima variable tersebut. Jangan menaruh kredensial di `.gitlab-ci.yml`.
+Aktifkan **Masked** untuk tiga variable kredensial tersebut.
 
 ## 5. Tambahkan Pipeline Deploy GitLab
 
@@ -113,16 +137,21 @@ image: alpine:3.22
 stages:
   - deploy
 
-deploy_ftp:
+deploy_zip:
   stage: deploy
   only:
     - main
   before_script:
-    - apk add --no-cache lftp
+    - apk add --no-cache lftp curl zip
   script:
     - test -n "$FTP_SERVER" || (echo "FTP_SERVER belum diatur"; exit 1)
     - test -n "$FTP_USERNAME" || (echo "FTP_USERNAME belum diatur"; exit 1)
     - test -n "$FTP_PASSWORD" || (echo "FTP_PASSWORD belum diatur"; exit 1)
+
+    - echo "Membuat arsip ZIP dari project..."
+    - zip -r deploy.zip . -x "*.git*" "*.github*" "*.gitlab-ci.yml" "deploy.zip"
+
+    - echo "Mengunggah file deploy.zip ke InfinityFree..."
     - |
       lftp -c "
         set net:max-retries 10;
@@ -131,49 +160,33 @@ deploy_ftp:
         set xfer:clobber true;
         debug 3;
         open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
-        put assets/profile.jpg -o htdocs/assets/profile.jpg;
-        mirror --reverse \
-          --verbose \
-          --ignore-time \
-          --no-perms \
-          --parallel=1 \
-          --exclude-glob .git/ \
-          --exclude-glob .github/ \
-          --exclude-glob .gitlab-ci.yml \
-          --exclude-glob .gitignore \
-          --exclude-glob README.md \
-          ./ htdocs/;
+        put deploy.zip -o htdocs/deploy.zip;
         bye
       "
+
+    - echo "Memicu ekstraksi file di server..."
+    - curl -X GET "https://NAMA_DOMAIN_ANDA/unzip.php?token=RAHASIA_ZIP_DEPLOY"
+
+    - echo "Deployment selesai!"
 ```
 
-Pada contoh ini, pipeline mengunggah isi repository ke `htdocs/`. Jika login FTP Anda langsung membuka direktori web publik, ganti `htdocs/` pada perintah `mirror` menjadi `./`. Web server akan menampilkan `index.php` atau `index.html` secara otomatis selama file tersebut berada langsung di direktori web publik; nama tujuan upload tetap perlu sesuai dengan struktur FTP akun. File konfigurasi pipeline dan file development yang dikecualikan tidak diunggah. `--ignore-time` membuat `lftp` membandingkan ukuran tanpa mengandalkan timestamp file lokal, yang biasanya baru setiap GitLab Runner melakukan checkout; file berukuran sama tidak akan dikirim ulang. Konsekuensinya, jika isi file berubah tetapi ukuran byte-nya tetap sama, perubahan itu dapat terlewat—unggah file tersebut secara manual atau pastikan ukuran berubah. `--no-perms` mencegah `lftp` menjalankan `chmod`, yang dapat ditolak oleh FTP hosting bersama. `debug 3` menampilkan pesan error/respons server untuk membantu diagnosis tanpa mengaktifkan dump protokol penuh.
-
-Perintah di atas tidak menghapus file yang hanya ada di hosting. Ini disengaja agar file hosting lain tidak terhapus otomatis; jika menghapus file dari repository, hapus file terkait di hosting secara manual setelah memastikan file tersebut memang tidak diperlukan.
+_(Catatan: Ganti `https://NAMA_DOMAIN_ANDA/unzip.php` dengan URL domain website Anda yang sebenarnya)._
 
 ## 6. Uji Deploy Otomatis
 
 1. Commit file `.gitlab-ci.yml` dan perubahan website, lalu push ke branch `main` di GitHub.
-2. Buka **Actions** di GitHub dan pastikan job mirror berhasil.
-3. Setelah commit masuk ke GitLab, buka **Build > Pipelines** dan pastikan job `deploy_ftp` berjalan sampai sukses.
-4. Buka domain InfinityFree dan periksa perubahan. Jika konten lama masih terlihat, coba refresh tanpa cache atau periksa apakah pipeline mengunggah ke direktori yang benar.
-5. Untuk perubahan berikutnya, cukup push commit ke `main` di GitHub. GitHub Actions akan mirror ke GitLab dan GitLab CI/CD menjalankan deploy FTP.
+2. Buka tab **Actions** di GitHub dan pastikan job mirror berhasil.
+3. Buka **Build > Pipelines** di GitLab dan pastikan job berjalan sampai sukses.
+4. Buka domain Anda dan periksa apakah perubahan website sudah tampil dengan baik.
 
 ## Pemecahan Masalah
 
-- **GitHub Actions gagal:** Pastikan secret `GITLAB_TOKEN` valid, memiliki izin push, dan URL project GitLab pada workflow benar.
-- **Pipeline tidak berjalan di GitLab:** Pastikan mirror berhasil masuk ke branch `main`, CI/CD tersedia untuk project, dan file `.gitlab-ci.yml` ada di root repository.
-- **Variable FTP kosong di job:** Periksa nama variables. Jika ditandai Protected, pastikan branch `main` juga protected.
-- **FTP login gagal:** Salin ulang host, username, dan password dari Client Area. Gunakan detail dan mode koneksi yang didukung akun.
-- **Log menampilkan `550 Could not change perms` atau `chmod: Access failed`:** Pastikan opsi `--no-perms` ada pada perintah `mirror`; InfinityFree/shared hosting dapat menolak perubahan permission lewat FTP.
-- **Log menampilkan `230-Your bandwidth usage is restricted`, lalu `451 Error during read from data connection`:** Login FTP berhasil, tetapi server sedang membatasi transfer data untuk akun. Mengubah retry, direktori, atau secret pipeline tidak mengatasi pembatasan ini. Periksa status dan penggunaan akun di InfinityFree Client Area, ikuti informasi pemulihan/reset di sana, atau hubungi dukungan InfinityFree jika pembatasan tidak jelas. Tunggu sampai transfer FTP manual melalui FileZilla berhasil sebelum menjalankan ulang pipeline. Log dapat menampilkan `Removing old file` sebelum transfer baru gagal; periksa file website di `htdocs` dan pulihkan/unggah kembali file yang hilang setelah pembatasan berakhir.
-- **Log menampilkan `Fatal error: max-retries exceeded` pada file yang berubah:** Periksa respons FTP tambahan yang tampil setelah `debug 3`. Coba unggah file yang sama secara manual dengan FileZilla ke direktori tujuan. Jika unggah manual juga gagal, periksa koneksi, kuota/ruang hosting, dan respons FTP InfinityFree. Jika unggah manual berhasil tetapi CI gagal, kirim pesan respons FTP dari log (tanpa kredensial) untuk diagnosis lanjutan. `max-retries exceeded` sendiri hanya menyatakan bahwa retry `lftp` habis; pesan itu tidak mengungkap penyebab server.
-- **Pipeline sukses tetapi website tidak berubah:** Periksa apakah tujuan upload `htdocs/` atau `./` sesuai dengan struktur FTP akun, lokasi file `index.php`/`index.html`, dan log job untuk melihat hasil `lftp`.
-- **PHP source code tampil di browser:** Jangan biarkan halaman tersebut tersedia untuk publik. Pastikan file berekstensi `.php` dan hosting memproses PHP sebelum mengunggah kembali.
+- **GitHub Actions gagal:** Pastikan secret `GITLAB_TOKEN` valid dan memiliki izin _write_repository_.
+- **Pipeline error saat upload ZIP:** Pastikan koneksi server stabil dan ukuran file ZIP tidak melebihi batas wajar hosting gratis.
+- **Ekstraksi gagal (Curl error/403):** Pastikan file `unzip.php` sudah diunggah ke folder `htdocs/` dan token rahasia di URL curl sama persis dengan yang ada di dalam skrip PHP.
+- **PHP source code tampil di browser:** Pastikan file berekstensi `.php` dan server hosting memproses PHP dengan benar.
 
 ## Catatan
 
-- `.html` adalah halaman statis dan tidak menjalankan kode PHP. Simpan halaman yang berisi kode PHP dengan ekstensi `.php`.
-- Jangan commit rahasia, backup database, atau file lokal yang tidak seharusnya dipublikasikan.
-- Contoh pipeline ini mengunggah source website langsung; tidak menjalankan build, instalasi Composer, atau migrasi database.
-- Periksa dokumentasi dan batasan terbaru InfinityFree untuk detail FTP, hosting, dan penggunaan layanan.
+- Jangan commit informasi rahasia, token, atau kredensial database ke dalam repository publik.
+- Pastikan skrip `unzip.php` sudah terpasang di server sebelum menjalankan pipeline otomatis untuk pertama kalinya.
