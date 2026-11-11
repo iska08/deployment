@@ -115,6 +115,8 @@ if (file_exists($zipFile)) {$zip = new ZipArchive;
 }
 ```
 
+> Token RAHASIA_ZIP_DEPLOY bukanlah kode otomatis atau bawaan dari sistem GitLab maupun InfinityFree, melainkan bebas Anda buat sendiri (bebas dikarang).
+
 ## 4. Simpan Kredensial FTP di GitLab
 
 Di GitLab project, buka **Settings > CI/CD > Variables** dan tambahkan variables berikut:
