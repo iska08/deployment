@@ -95,24 +95,60 @@ Ganti `USERNAME/website-saya` dengan path project GitLab tujuan. Simpan file seb
 // Token keamanan untuk ekstraksi
 $secret = 'RAHASIA_ZIP_DEPLOY';
 
-if (!isset($_GET['token']) || $_GET['token'] !==$secret) {
+if (!isset($_GET['token']) || $_GET['token'] !== $secret) {
     http_response_code(403);
     exit("Akses ditolak: Token salah.");
 }
 
 $zipFile = 'deploy.zip';
-if (file_exists($zipFile)) {$zip = new ZipArchive;
+if (file_exists($zipFile)) {
+    // 1. Hapus semua file/folder lama di htdocs KECUALI unzip.php dan deploy.zip
+    $files = scandir('./');
+    foreach ($files as $file) {
+        if ($file !== '.' && $file !== '..' && $file !== 'unzip.php' && $file !== 'deploy.zip') {
+            if (is_dir($file)) {
+                // Fungsi rekursif untuk menghapus folder
+                rmdir_recursive($file);
+            } else {
+                unlink($file);
+            }
+        }
+    }
+
+    // 2. Ekstrak file ZIP baru
+    $zip = new ZipArchive;
     if ($zip->open($zipFile) === TRUE) {
-        $zip->extractTo('./');$zip->close();
-        unlink($zipFile); // Hapus arsip zip setelah selesai
-        unlink(__FILE__); // Hapus file unzip.php ini demi keamanan
-        echo "SUKSES: Seluruh file berhasil diekstrak!";
+        $zip->extractTo('./');
+        $zip->close();
+        
+        // 3. Hapus arsip zip setelah selesai
+        unlink($zipFile); 
+        
+        // 4. Hapus file unzip.php ini demi keamanan setelah selesai diekstrak
+        unlink(__FILE__); 
+        
+        echo "SUKSES: File lama dibersihkan, file baru berhasil diekstrak!";
     } else {
         echo "GAGAL: Tidak dapat membuka arsip ZIP.";
     }
 } else {
     echo "GAGAL: File deploy.zip tidak ditemukan di direktori.";
 }
+
+// Fungsi bantu untuk menghapus folder beserta Isinya
+function rmdir_recursive($dir) {
+    $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
+    $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
+    foreach($files as $file) {
+        if ($file->isDir()){
+            rmdir($file->getRealPath());
+        } else {
+            unlink($file->getRealPath());
+        }
+    }
+    rmdir($dir);
+}
+?>
 ```
 
 > Token RAHASIA_ZIP_DEPLOY bukanlah kode otomatis atau bawaan dari sistem GitLab maupun InfinityFree, melainkan bebas Anda buat sendiri (bebas dikarang).
@@ -150,10 +186,12 @@ deploy_zip:
     - test -n "$FTP_USERNAME" || (echo "FTP_USERNAME belum diatur"; exit 1)
     - test -n "$FTP_PASSWORD" || (echo "FTP_PASSWORD belum diatur"; exit 1)
 
-    - echo "Membuat arsip ZIP dari project..."
+    - echo "1. Commit & Mirroring dari GitHub ke GitLab sudah berjalan..."
+
+    - echo "2 & 3. Membuat arsip ZIP dari seluruh file dan folder di GitLab..."
     - zip -r deploy.zip . -x "*.git*" "*.github*" "*.gitlab-ci.yml" "deploy.zip"
 
-    - echo "Mengunggah file deploy.zip ke InfinityFree..."
+    - echo "4 & 5. Mengunggah file deploy.zip ke InfinityFree..."
     - |
       lftp -c "
         set net:max-retries 10;
@@ -166,10 +204,10 @@ deploy_zip:
         bye
       "
 
-    - echo "Memicu ekstraksi file di server..."
+    - echo "6 & 7. Memicu pembersihan file lama, ekstraksi ZIP, dan penghapusan file ZIP di server..."
     - curl -X GET "https://NAMA_DOMAIN_ANDA/unzip.php?token=RAHASIA_ZIP_DEPLOY"
 
-    - echo "Deployment selesai!"
+    - echo "Deployment selesai sepenuhnya!"
 ```
 
 _(Catatan: Ganti `https://NAMA_DOMAIN_ANDA/unzip.php` dengan URL domain website Anda yang sebenarnya)._
