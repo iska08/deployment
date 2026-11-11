@@ -185,7 +185,7 @@ deploy_zip:
     - echo "3. Arsip ZIP berhasil dibuat (deploy.zip)."
 
     - echo "4. Memicu skrip server untuk membersihkan file dan folder lama di InfinityFree..."
-    - wget -qO- "https://iska-portofolio.gt.tc/unzip.php?token=RAHASIA_ZIP_DEPLOY" || true
+    - wget -qO- "https://NAMA_DOMAIN_ANDA/unzip.php?token=RAHASIA_ZIP_DEPLOY" || true
 
     - echo "5. Memulai proses pengunggahan file deploy.zip yang baru ke server InfinityFree via FTP..."
     - |
@@ -202,7 +202,7 @@ deploy_zip:
     - echo "6. File deploy.zip berhasil diunggah ke direktori htdocs server."
 
     - echo "7. Memicu kembali skrip server untuk mengekstrak file ZIP baru dan membersihkan arsip..."
-    - wget -qO- "https://iska-portofolio.gt.tc/unzip.php?token=RAHASIA_ZIP_DEPLOY"
+    - wget -qO- "https://NAMA_DOMAIN_ANDA/unzip.php?token=RAHASIA_ZIP_DEPLOY"
 
     - echo "Deployment selesai sepenuhnya dengan sukses!"
 ```
