@@ -2,7 +2,7 @@
 
 Repositori ini berisi panduan langkah-demi-langkah (_step-by-step_) untuk melakukan deployment website dan aplikasi web ke berbagai jenis hosting.
 
-Panduan mencakup deployment aplikasi **PHP** dan **Laravel** melalui FTP, cPanel, Docker, VPS, serta hosting InfinityFree.
+Panduan mencakup deployment aplikasi **HTML**, **PHP** dan **Laravel** melalui FTP, cPanel, Docker, VPS, serta hosting InfinityFree.
 
 ---
 
@@ -35,12 +35,12 @@ Panduan untuk mengunggah website PHP/HTML sederhana ke hosting InfinityFree meng
 - [➜ Deployment PHP & HTML ke InfinityFree](./ftp-infinityfree-php-html/Readme.md)
   _Deploy otomatis website PHP/HTML dari GitHub melalui GitLab CI/CD dan FTP ke InfinityFree._
 
-### 4. Menggunakan GitHub di Vercel (PHP & HTML)
+### 4. Menggunakan GitHub di Vercel (HTML)
 
-Panduan untuk mengunggah website PHP/HTML sederhana ke hosting Vercel menggunakan GitHub.
+Panduan untuk mengunggah website HTML sederhana ke hosting Vercel menggunakan GitHub.
 
-- [➜ Deployment PHP & HTML ke Vercel](./github-vercel-php-html/Readme.md)
-  _Deploy otomatis website PHP/HTML dari GitHub ke Vercel._
+- [➜ Deployment HTML ke Vercel](./github-vercel-html/Readme.md)
+  _Deploy otomatis website HTML dari GitHub ke Vercel._
 
 ---
 
