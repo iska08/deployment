@@ -91,7 +91,7 @@ Ganti `USERNAME/website-saya` dengan path project GitLab tujuan. Simpan file seb
 4. Buat file helper bernama **`unzip.php`** di dalam folder `htdocs/` Anda untuk menangani ekstraksi otomatis dengan kode berikut:
 
 ```bash
-<?>
+<?php
 $secret = 'RAHASIA_ZIP_DEPLOY';
 
 if (!isset($_GET['token']) || $_GET['token'] !== $secret) {
@@ -99,10 +99,12 @@ if (!isset($_GET['token']) || $_GET['token'] !== $secret) {
     exit("GAGAL: Akses ditolak, token salah.");
 }
 
-// 4. Menghapus semua file dan folder lama di htdocs KECUALI file unzip.php itu sendiri
+$zipFile = 'deploy.zip';
+
+// 1. Jalankan pembersihan file/folder lama terlebih dahulu (KECUALI unzip.php dan zip file)
 $files = scandir('./');
 foreach ($files as $file) {
-    if ($file !== '.' && $file !== '..' && $file !== 'unzip.php') {
+    if ($file !== '.' && $file !== '..' && $file !== 'unzip.php' && $file !== $zipFile) {
         if (is_dir($file)) {
             rmdir_recursive($file);
         } else {
@@ -111,7 +113,20 @@ foreach ($files as $file) {
     }
 }
 
-echo "SUKSES: Seluruh file dan folder lama berhasil dibersihkan dari server!";
+// 2. Jika file ZIP sudah diupload, langsung ekstrak dan bersihkan ZIP-nya
+if (file_exists($zipFile)) {
+    $zip = new ZipArchive;
+    if ($zip->open($zipFile) === TRUE) {
+        $zip->extractTo('./');
+        $zip->close();
+        unlink($zipFile); // Hapus arsip zip setelah selesai
+        echo "SUKSES: Pembersihan, ekstraksi, dan pembersihan ZIP berhasil!";
+    } else {
+        echo "GAGAL: Tidak dapat membuka arsip ZIP.";
+    }
+} else {
+    echo "SUKSES: Pembersihan selesai. Menunggu file ZIP untuk diekstrak.";
+}
 
 // Fungsi bantu untuk menghapus folder secara rekursif
 function rmdir_recursive($dir) {
@@ -169,8 +184,8 @@ deploy_zip:
     - zip -r deploy.zip . -x "*.git*" "*.github*" "*.gitlab-ci.yml" "deploy.zip"
     - echo "3. Arsip ZIP berhasil dibuat (deploy.zip)."
 
-    - echo "4. Memicu skrip server untuk menghapus/membersihkan file dan folder lama di InfinityFree..."
-    - curl -X GET "https://NAMA_DOMAIN_ANDA/unzip.php?token=RAHASIA_ZIP_DEPLOY&action=clean"
+    - echo "4. Memicu skrip server untuk membersihkan file dan folder lama di InfinityFree..."
+    - wget -qO- "https://iska-portofolio.gt.tc/unzip.php?token=RAHASIA_ZIP_DEPLOY" || true
 
     - echo "5. Memulai proses pengunggahan file deploy.zip yang baru ke server InfinityFree via FTP..."
     - |
@@ -186,7 +201,9 @@ deploy_zip:
       "
     - echo "6. File deploy.zip berhasil diunggah ke direktori htdocs server."
 
-    - echo "7. Proses ekstraksi file ZIP baru dan pembersihan arsip zip di server selesai."
+    - echo "7. Memicu kembali skrip server untuk mengekstrak file ZIP baru dan membersihkan arsip..."
+    - wget -qO- "https://iska-portofolio.gt.tc/unzip.php?token=RAHASIA_ZIP_DEPLOY"
+
     - echo "Deployment selesai sepenuhnya dengan sukses!"
 ```
 
