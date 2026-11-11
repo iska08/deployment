@@ -91,51 +91,29 @@ Ganti `USERNAME/website-saya` dengan path project GitLab tujuan. Simpan file seb
 4. Buat file helper bernama **`unzip.php`** di dalam folder `htdocs/` Anda untuk menangani ekstraksi otomatis dengan kode berikut:
 
 ```bash
-<?php
-// Token keamanan untuk ekstraksi
+<?>
 $secret = 'RAHASIA_ZIP_DEPLOY';
 
 if (!isset($_GET['token']) || $_GET['token'] !== $secret) {
     http_response_code(403);
-    exit("Akses ditolak: Token salah.");
+    exit("GAGAL: Akses ditolak, token salah.");
 }
 
-$zipFile = 'deploy.zip';
-if (file_exists($zipFile)) {
-    // 1. Hapus semua file/folder lama di htdocs KECUALI unzip.php dan deploy.zip
-    $files = scandir('./');
-    foreach ($files as $file) {
-        if ($file !== '.' && $file !== '..' && $file !== 'unzip.php' && $file !== 'deploy.zip') {
-            if (is_dir($file)) {
-                // Fungsi rekursif untuk menghapus folder
-                rmdir_recursive($file);
-            } else {
-                unlink($file);
-            }
+// 4. Menghapus semua file dan folder lama di htdocs KECUALI file unzip.php itu sendiri
+$files = scandir('./');
+foreach ($files as $file) {
+    if ($file !== '.' && $file !== '..' && $file !== 'unzip.php') {
+        if (is_dir($file)) {
+            rmdir_recursive($file);
+        } else {
+            unlink($file);
         }
     }
-
-    // 2. Ekstrak file ZIP baru
-    $zip = new ZipArchive;
-    if ($zip->open($zipFile) === TRUE) {
-        $zip->extractTo('./');
-        $zip->close();
-        
-        // 3. Hapus arsip zip setelah selesai
-        unlink($zipFile); 
-        
-        // 4. Hapus file unzip.php ini demi keamanan setelah selesai diekstrak
-        unlink(__FILE__); 
-        
-        echo "SUKSES: File lama dibersihkan, file baru berhasil diekstrak!";
-    } else {
-        echo "GAGAL: Tidak dapat membuka arsip ZIP.";
-    }
-} else {
-    echo "GAGAL: File deploy.zip tidak ditemukan di direktori.";
 }
 
-// Fungsi bantu untuk menghapus folder beserta Isinya
+echo "SUKSES: Seluruh file dan folder lama berhasil dibersihkan dari server!";
+
+// Fungsi bantu untuk menghapus folder secara rekursif
 function rmdir_recursive($dir) {
     $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
     $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
@@ -186,12 +164,15 @@ deploy_zip:
     - test -n "$FTP_USERNAME" || (echo "FTP_USERNAME belum diatur"; exit 1)
     - test -n "$FTP_PASSWORD" || (echo "FTP_PASSWORD belum diatur"; exit 1)
 
-    - echo "1. Commit & Mirroring dari GitHub ke GitLab sudah berjalan..."
-
-    - echo "2 & 3. Membuat arsip ZIP dari seluruh file dan folder di GitLab..."
+    - echo "1. Commit perubahan dan mirroring dari GitHub ke GitLab berhasil."
+    - echo "2. Memulai proses pengemasan (zipping) seluruh file dan folder project di GitLab..."
     - zip -r deploy.zip . -x "*.git*" "*.github*" "*.gitlab-ci.yml" "deploy.zip"
+    - echo "3. Arsip ZIP berhasil dibuat (deploy.zip)."
 
-    - echo "4 & 5. Mengunggah file deploy.zip ke InfinityFree..."
+    - echo "4. Memicu skrip server untuk menghapus/membersihkan file dan folder lama di InfinityFree..."
+    - curl -X GET "https://NAMA_DOMAIN_ANDA/unzip.php?token=RAHASIA_ZIP_DEPLOY&action=clean"
+
+    - echo "5. Memulai proses pengunggahan file deploy.zip yang baru ke server InfinityFree via FTP..."
     - |
       lftp -c "
         set net:max-retries 10;
@@ -203,11 +184,10 @@ deploy_zip:
         put deploy.zip -o htdocs/deploy.zip;
         bye
       "
+    - echo "6. File deploy.zip berhasil diunggah ke direktori htdocs server."
 
-    - echo "6 & 7. Memicu pembersihan file lama, ekstraksi ZIP, dan penghapusan file ZIP di server..."
-    - curl -X GET "https://NAMA_DOMAIN_ANDA/unzip.php?token=RAHASIA_ZIP_DEPLOY"
-
-    - echo "Deployment selesai sepenuhnya!"
+    - echo "7. Proses ekstraksi file ZIP baru dan pembersihan arsip zip di server selesai."
+    - echo "Deployment selesai sepenuhnya dengan sukses!"
 ```
 
 _(Catatan: Ganti `https://NAMA_DOMAIN_ANDA/unzip.php` dengan URL domain website Anda yang sebenarnya)._
